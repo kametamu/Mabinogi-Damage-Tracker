@@ -5,7 +5,6 @@ using SharpPcap;
 using System.Buffers.Binary;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 using System.Text;
 using Microsoft.AspNetCore.Identity.UI.Services;
 using System;
@@ -642,8 +641,18 @@ namespace Mabinogi_Damage_tracker
                 //the next [namelength] bytes is the name
 
                 string playername = Encoding.UTF8.GetString(packet.PayloadData, cursor, (int)namelength - 1);
+                playername = playername.Trim();
 
-                if (Regex.IsMatch(playername, @"[^a-zA-Z0-9+]")) { return; }
+                if (string.IsNullOrWhiteSpace(playername))
+                {
+                    return;
+                }
+
+                // Reject only non-printable control characters
+                if (playername.Any(char.IsControl))
+                {
+                    return;
+                }
 
                 //character_names.Add(new Name(playername, playerid));
                 db_helper.add_player(playername, (Int64)playerid);
