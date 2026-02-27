@@ -1,0 +1,43 @@
+{
+  "app": {
+    "title": "マビノギ ダメージトラッカー"
+  },
+  "menu": {
+    "home": "ホーム",
+    "live": "ライブ",
+    "players": "プレイヤー",
+    "recordings": "記録",
+    "settings": "設定",
+    "about": "このアプリについて",
+    "feedback": "フィードバック"
+  },
+  "settings": {
+    "colorTheme": "カラーテーマ",
+    "colorThemeDescription": "アプリの表示をライトモードまたはダークモードに切り替えます。",
+    "light": "ライト",
+    "dark": "ダーク",
+    "numberOfBurst": "バースト件数",
+    "numberOfBurstDescription": "分析ページに表示するダメージバーストの件数を設定します。",
+    "numberOfLargestHits": "最大ヒット件数",
+    "numberOfLargestHitsDescription": "分析ページに表示する単発最大ダメージの件数を設定します。",
+    "pollingRate": "ポーリング間隔",
+    "pollingRateDescription": "記録中にデータを取得する間隔を設定します。",
+    "selectAdapter": "アダプター選択",
+    "selectAdapterDescription": "パーサーで使用するアダプターを設定します。",
+    "adapter": "アダプター",
+    "noAdaptersAvailable": "利用可能なアダプターがありません",
+    "noAdapterSaved": "保存されたアダプターがありません",
+    "restartParse": "パーサー再起動",
+    "restartParseDescription": "パーサーサービスを再起動します。",
+    "restart": "再起動",
+    "language": "言語",
+    "languageEnglish": "English",
+    "languageJapanese": "日本語"
+  },
+  "alerts": {
+    "adapterSavedSuccess": "アダプターを保存しました。",
+    "adapterSavedError": "アダプターの保存に失敗しました。",
+    "adapterRestartedSuccess": "アダプターを再起動しました。",
+    "adapterRestartedError": "アダプターの再起動に失敗しました。"
+  }
+}

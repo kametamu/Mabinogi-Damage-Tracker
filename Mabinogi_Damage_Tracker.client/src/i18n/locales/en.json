@@ -1,0 +1,43 @@
+{
+  "app": {
+    "title": "Mabinogi Damage Tracker"
+  },
+  "menu": {
+    "home": "Home",
+    "live": "Live",
+    "players": "Players",
+    "recordings": "Recordings",
+    "settings": "Settings",
+    "about": "About",
+    "feedback": "Feedback"
+  },
+  "settings": {
+    "colorTheme": "Color Theme",
+    "colorThemeDescription": "Sets the color mode for the application to light or dark mode",
+    "light": "Light",
+    "dark": "Dark",
+    "numberOfBurst": "Number of Burst",
+    "numberOfBurstDescription": "Sets the number of unique damage burst to view in the analytics page.",
+    "numberOfLargestHits": "Number of Largest Hits",
+    "numberOfLargestHitsDescription": "Sets the number of unique single largest damage instances to view in the analytics page.",
+    "pollingRate": "Polling Rate",
+    "pollingRateDescription": "Sets the interval for receiving data while recording.",
+    "selectAdapter": "Select Adapter",
+    "selectAdapterDescription": "Sets the adapter for the parser to use.",
+    "adapter": "Adapter",
+    "noAdaptersAvailable": "No Adapters Available",
+    "noAdapterSaved": "No Adapter Saved",
+    "restartParse": "Restart Parse",
+    "restartParseDescription": "Restarts the parser service",
+    "restart": "Restart",
+    "language": "Language",
+    "languageEnglish": "English",
+    "languageJapanese": "日本語"
+  },
+  "alerts": {
+    "adapterSavedSuccess": "Adapter saved successfully.",
+    "adapterSavedError": "Failed to save adapter.",
+    "adapterRestartedSuccess": "Adapter restarted successfully.",
+    "adapterRestartedError": "Failed to restart adapter."
+  }
+}

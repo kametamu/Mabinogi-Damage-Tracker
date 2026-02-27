@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
@@ -16,52 +17,57 @@ import RssFeedIcon from '@mui/icons-material/RssFeed';
 import PersonIcon from '@mui/icons-material/Person';
 
 const mainListItems = [
-    { text: 'Home', icon: <HomeRoundedIcon /> },
-    { text: 'Live', icon: <RssFeedIcon />},
-    { text: 'Players', icon: <PersonIcon />},
-    { text: 'Recordings', icon: <HistoryIcon /> },
+  { key: 'Home', labelKey: 'menu.home', icon: <HomeRoundedIcon /> },
+  { key: 'Live', labelKey: 'menu.live', icon: <RssFeedIcon /> },
+  { key: 'Players', labelKey: 'menu.players', icon: <PersonIcon /> },
+  { key: 'Recordings', labelKey: 'menu.recordings', icon: <HistoryIcon /> },
 ];
 
 const secondaryListItems = [
-    { text: 'Settings', icon: <SettingsRoundedIcon /> },
-    { text: 'About', icon: <InfoRoundedIcon /> },
-    { text: 'Feedback', icon: <HelpRoundedIcon /> },
+  { key: 'Settings', labelKey: 'menu.settings', icon: <SettingsRoundedIcon /> },
+  { key: 'About', labelKey: 'menu.about', icon: <InfoRoundedIcon /> },
+  { key: 'Feedback', labelKey: 'menu.feedback', icon: <HelpRoundedIcon /> },
 ];
 
 export default function MenuContent() {
-    const { menu, setMenu } = useContext(AppContext) 
+  const { t } = useTranslation();
+  const { menu, setMenu } = useContext(AppContext);
 
-    return (
+  return (
     <Stack sx={{ flexGrow: 1, p: 1, justifyContent: 'space-between' }}>
-        <List dense>
-        {mainListItems.map((item, index) => (
-            <ListItem key={index} disablePadding sx={{ display: 'block' }}>
-            <ListItemButton selected={item.text === menu.name} onClick={() => {
-                setMenu({ name: item.text })
-                }}>
-                <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
+      <List dense>
+        {mainListItems.map((item) => (
+          <ListItem key={item.key} disablePadding sx={{ display: 'block' }}>
+            <ListItemButton
+              selected={item.key === menu.name}
+              onClick={() => {
+                setMenu({ name: item.key });
+              }}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={t(item.labelKey)} />
             </ListItemButton>
-            </ListItem>
+          </ListItem>
         ))}
-        </List>
-        <List dense>
-        {secondaryListItems.map((item, index) => (
-            <ListItem key={index} disablePadding sx={{ display: 'block' }} >
-                <ListItemButton onClick={() => {
-                    if (item.text === "Feedback") {
-                        window.open('https://github.com/KilloPillers/Mabinogi_Damage_Tracker/issues')
-                    }
-                    else {
-                        setMenu({ name: item.text })
-                    }
-                    }}>
-                    <ListItemIcon>{item.icon}</ListItemIcon>
-                    <ListItemText primary={item.text} />
-                </ListItemButton>
-            </ListItem>
+      </List>
+      <List dense>
+        {secondaryListItems.map((item) => (
+          <ListItem key={item.key} disablePadding sx={{ display: 'block' }}>
+            <ListItemButton
+              onClick={() => {
+                if (item.key === 'Feedback') {
+                  window.open('https://github.com/KilloPillers/Mabinogi_Damage_Tracker/issues');
+                } else {
+                  setMenu({ name: item.key });
+                }
+              }}
+            >
+              <ListItemIcon>{item.icon}</ListItemIcon>
+              <ListItemText primary={t(item.labelKey)} />
+            </ListItemButton>
+          </ListItem>
         ))}
-        </List>
+      </List>
     </Stack>
-    );
+  );
 }

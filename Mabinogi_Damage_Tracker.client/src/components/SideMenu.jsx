@@ -1,4 +1,5 @@
 import * as React from 'react';
+import { useTranslation } from 'react-i18next';
 import { styled } from '@mui/material/styles';
 import MuiDrawer, { drawerClasses } from '@mui/material/Drawer';
 import Box from '@mui/material/Box';
@@ -20,6 +21,8 @@ const Drawer = styled(MuiDrawer)({
 });
 
 export default function SideMenu() {
+  const { t } = useTranslation();
+
   return (
     <Drawer
       variant="permanent"
@@ -29,10 +32,10 @@ export default function SideMenu() {
           backgroundColor: 'background.paper',
         },
       }}
-      >
+    >
       <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '2rem', gap: '12px' }}>
         <img src="mabinogi.png" alt="M" width="100" height="100" />
-        <Typography>Mabinogi Damage Tracker</Typography>
+        <Typography>{t('app.title')}</Typography>
       </Box>
       <Divider />
       <Box
@@ -48,4 +51,3 @@ export default function SideMenu() {
     </Drawer>
   );
 }
-
