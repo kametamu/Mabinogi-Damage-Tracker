@@ -25,37 +25,44 @@ namespace Mabinogi_Damage_tracker.Models
         public string player_name { get; set; }
         public string datetime_newest_record {  get; set; }
         public Int32 unix_timestamp { get; set; }
-        public Damage_Simple(double dmg, UInt64 id, string name) 
+        public UInt16? skillid { get; set; }
+
+        public Damage_Simple(double dmg, UInt64 id, string name, UInt16? skillId = null)
         {
             damage = dmg;
             player_id = id;
             player_name = name;
+            skillid = skillId;
         }
-        public Damage_Simple(double dmg, Int64 id, string name)
+        public Damage_Simple(double dmg, Int64 id, string name, UInt16? skillId = null)
         {
             damage = dmg;
             player_id = (UInt64)id;
             player_name = name;
+            skillid = skillId;
         }
-        public Damage_Simple(double dmg, Int64 id, string name, string dt)
+        public Damage_Simple(double dmg, Int64 id, string name, string dt, UInt16? skillId = null)
         {
             damage = dmg;
             player_id = (UInt64)id;
             player_name = name;
             datetime_newest_record = dt;
+            skillid = skillId;
         }
-        public Damage_Simple(double dmg, Int64 id, string name, Int32 dt)
+        public Damage_Simple(double dmg, Int64 id, string name, Int32 dt, UInt16? skillId = null)
         {
             damage = dmg;
             player_id = (UInt64)id;
             player_name = name;
             unix_timestamp = dt;
+            skillid = skillId;
         }
-        public Damage_Simple(double dmg, Int64 id, Int32 ut)
+        public Damage_Simple(double dmg, Int64 id, Int32 ut, UInt16? skillId = null)
         {
             damage = dmg;
             player_id = (UInt64)id;
             unix_timestamp = ut;
+            skillid = skillId;
         }
     }
 

@@ -39,5 +39,9 @@
     "adapterSavedError": "アダプターの保存に失敗しました。",
     "adapterRestartedSuccess": "アダプターを再起動しました。",
     "adapterRestartedError": "アダプターの再起動に失敗しました。"
+  },
+  "analytics": {
+    "largestHitBy": "{{player}} の最大ヒット",
+    "skillLabel": "スキル"
   }
 }

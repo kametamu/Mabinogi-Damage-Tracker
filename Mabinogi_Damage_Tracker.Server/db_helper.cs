@@ -179,13 +179,17 @@ namespace Mabinogi_Damage_tracker
                 {
                     connection.Open();
                     SqliteCommand command = new SqliteCommand(@"
-                    SELECT distinct damages.playerid, MAX(damage) AS mx_damage, playername, damages.ut
-                    FROM damages
-                    left join players on damages.playerid = players.playerid
-                    WHERE ut BETWEEN @start_ut AND @end_ut
-                    GROUP by damages.playerid 
-                    order by mx_damage DESC
-                    limit @count
+                    SELECT ranked.playerid, ranked.damage AS mx_damage, players.playername, ranked.ut, ranked.skill
+                    FROM (
+                        SELECT d.playerid, d.damage, d.ut, d.skill,
+                               ROW_NUMBER() OVER (PARTITION BY d.playerid ORDER BY d.damage DESC, d.id ASC) AS rn
+                        FROM damages d
+                        WHERE d.ut BETWEEN @start_ut AND @end_ut
+                    ) ranked
+                    LEFT JOIN players ON ranked.playerid = players.playerid
+                    WHERE ranked.rn = 1
+                    ORDER BY mx_damage DESC
+                    LIMIT @count
                     ", connection);
 
                     command.Parameters.AddWithValue("@start_ut", start_ut);
@@ -201,7 +205,8 @@ namespace Mabinogi_Damage_tracker
                             string playerName = reader.IsDBNull(reader.GetOrdinal("playername")) ? $"{playerId}" : reader.GetString(reader.GetOrdinal("playername"));
                             double dmg = reader.GetDouble(reader.GetOrdinal("mx_damage"));
                             Int32 ut = reader.GetInt32(reader.GetOrdinal("ut"));
-                            query_results.Add(new Damage_Simple( dmg, playerId, playerName, ut));
+                            UInt16? skillId = reader.IsDBNull(reader.GetOrdinal("skill")) ? null : (UInt16?)reader.GetInt32(reader.GetOrdinal("skill"));
+                            query_results.Add(new Damage_Simple(dmg, playerId, playerName, ut, skillId));
                         }
                     }
                 }
@@ -398,7 +403,7 @@ namespace Mabinogi_Damage_tracker
                 {
                     connection.Open();
                     using (SqliteCommand command = new SqliteCommand(@"
-                        SELECT damages.id, damages.playerid, damage, playername, ut
+                        SELECT damages.id, damages.playerid, damage, playername, ut, skill
                         FROM damages
                         left join players on damages.playerid = players.playerid
                         WHERE damages.ut BETWEEN @start_ut and @end_ut
@@ -420,7 +425,8 @@ namespace Mabinogi_Damage_tracker
                                 double dmg = reader.GetDouble(reader.GetOrdinal("damage"));
                                 Int32 ut = reader.GetInt32(reader.GetOrdinal("ut"));
 
-                                query_results.Add(new Damage_Simple(dmg, playerId, playerName, ut));
+                                UInt16? skillId = reader.IsDBNull(reader.GetOrdinal("skill")) ? null : (UInt16?)reader.GetInt32(reader.GetOrdinal("skill"));
+                                query_results.Add(new Damage_Simple(dmg, playerId, playerName, ut, skillId));
                             }
                         }
 

@@ -39,5 +39,9 @@
     "adapterSavedError": "Failed to save adapter.",
     "adapterRestartedSuccess": "Adapter restarted successfully.",
     "adapterRestartedError": "Failed to restart adapter."
+  },
+  "analytics": {
+    "largestHitBy": "Largest Hit by {{player}}",
+    "skillLabel": "Skill"
   }
 }
