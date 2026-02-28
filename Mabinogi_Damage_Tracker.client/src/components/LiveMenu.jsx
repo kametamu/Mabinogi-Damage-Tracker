@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -11,6 +12,7 @@ import DamangeOverTimeLineGraph from './DamageOverTimeLineGraph';
 import LinearProgress from '@mui/material/LinearProgress';
 import LogStream from './LogStream'
 import PlayerDamageGauge from './PlayerDamageGauge';
+import LiveSkillDamageTable from './LiveSkillDamageTable';
 
 const RecordingButtonStyle = {
     width: '100%',
@@ -35,6 +37,7 @@ function transformDataLineChartDamage(apiData) {
 }
 
 export default function LiveMenu() {
+    const { t } = useTranslation();
     const { pollingRate } = useContext(AppContext);
     const [recording, setRecording] = useState(false);
     const [damagePieChartData, setDamagePieChartData] = useState([]); // for the piechart
@@ -233,7 +236,7 @@ export default function LiveMenu() {
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2}}>
-            <Typography variant="h2" sx={{ marginBottom: "24px" }}>Live</Typography>
+            <Typography variant="h2" sx={{ marginBottom: "24px" }}>{t('menu.live')}</Typography>
             <Paper sx={{ height: "100%", padding: 2}}>
                 <Grid container spacing={2}>
                     <Grid item size={2} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' } }>
@@ -263,6 +266,11 @@ export default function LiveMenu() {
                 </Grid>
                 <Grid item size={{ xs: 12, sm: 12, lg: 8, xl: 4 }}>
                     <PlayerDamageGauge value={DPS} averageDPS={averageDPS} />
+                </Grid>
+
+                <Grid item size={{ xs: 12, sm: 12, lg: 12, xl: 8 }}>
+                    <Typography variant="h5" sx={{ mb: 1 }}>{t('analytics.liveSkillDamage')}</Typography>
+                    <LiveSkillDamageTable startUT={startUT} recording={recording} />
                 </Grid>
             </Grid>
              

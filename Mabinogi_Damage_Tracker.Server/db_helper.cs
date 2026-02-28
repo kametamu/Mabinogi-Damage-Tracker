@@ -85,8 +85,9 @@ namespace Mabinogi_Damage_tracker
                 {
                     connection.Open();
                     SqliteCommand add_command = new SqliteCommand(@"
-                    INSERT OR IGNORE INTO players (playerid, playername)
+                    INSERT INTO players (playerid, playername)
                         VALUES(@playerid,@playername)
+                    ON CONFLICT(playerid) DO UPDATE SET playername=excluded.playername
                     ", connection);
                     add_command.Parameters.AddWithValue("@playerid", playerid);
                     add_command.Parameters.AddWithValue("@playername", playername);

@@ -52,6 +52,7 @@
     "hits": "Hits",
     "search": "Search / Filter",
     "noRows": "No rows",
-    "all": "All"
+    "all": "All",
+    "liveSkillDamage": "Live Skill Damage"
   }
 }
