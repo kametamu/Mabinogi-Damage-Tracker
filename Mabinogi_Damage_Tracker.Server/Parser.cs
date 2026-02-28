@@ -450,6 +450,9 @@ namespace Mabinogi_Damage_tracker
                 UInt64 enemy_id = 0;
                 SkillId skill = 0;
                 SkillId subskill = 0;
+                ushort lastRawSkillId = 0;
+                ushort lastRawSubSkillId = 0;
+                bool hasLastSkill = false;
                 string throwawaypacket = "";
 
                 //now we have to parse each sub packet
@@ -497,6 +500,10 @@ namespace Mabinogi_Damage_tracker
                     if ((subsub_ttype & 2) != 0)
                     {
                         attacker_id = entityID;
+                        lastRawSkillId = rawSkillId;
+                        lastRawSubSkillId = rawSubSkillId;
+                        hasLastSkill = true;
+
                         skill = (SkillId)rawSkillId;
                         subskill = (SkillId)rawSubSkillId;
 
@@ -592,15 +599,29 @@ namespace Mabinogi_Damage_tracker
                         if (attacker_id < 0x0010000000000001 || attacker_id > 0x0010010000000001)
                         { break; }
 
-                        var normalizedSkill = SkillNormalization.Resolve(rawSkillId, rawSubSkillId);
+                        // NOTE:
+                        // rawSkillId/rawSubSkillId from the damage block are often unreliable.
+                        // Prefer attacker-info (ttype & 2) values captured earlier in this event.
+                        ushort useSkill = hasLastSkill ? lastRawSkillId : rawSkillId;
+                        ushort useSubSkill = hasLastSkill ? lastRawSubSkillId : rawSubSkillId;
+
+                        if (!hasLastSkill)
+                        {
+                            Debug.WriteLine("[SKILL RESOLUTION FALLBACK] attacker-info skill was unavailable; using damage-block raw values.");
+                        }
+
+                        var normalizedSkill = SkillNormalization.Resolve(useSkill, useSubSkill);
                         int effectiveSkillId = normalizedSkill.resolvedSkill;
+
+                        skill = (SkillId)useSkill;
+                        subskill = (SkillId)useSubSkill;
 
                         if(damage < 0 || damage > 100000000 || rawSkillId == 601 || rawSkillId == 512 || rawSkillId == 590) { break; }
                         if (effectiveSkillId < 10) { break; }
 
                         LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker_id, enemy_id, damage));
                         Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, raw {6}:{7}, effective {8} ({9})", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill, effectiveSkillId, normalizedSkill.reason);
-                        db_helper.add_damage((Int64)attacker_id, damage, wound, (int)manaDamage, (Int64)enemy_id, effectiveSkillId, rawSkillId, rawSubSkillId);
+                        db_helper.add_damage((Int64)attacker_id, damage, wound, (int)manaDamage, (Int64)enemy_id, effectiveSkillId, useSkill, useSubSkill);
                     }
                     cursor = subsub_pack_start_cursor + (int)subsub_pack_len;
                 }
