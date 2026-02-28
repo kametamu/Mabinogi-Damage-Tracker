@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext'
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
@@ -14,6 +15,8 @@ import DamageScatterPlot from './DamageScatterPlot';
 import LargestHitCard from './LargestHitCard';
 import BurstCard from './BurstCard';
 import HealingCard from './HealingCard';
+import SkillDamageByPlayerTable from './SkillDamageByPlayerTable';
+import SkillDamageRankingTable from './SkillDamageRankingTable';
 
 function formatTimeStamp(ut) {
     return new Date((ut) * 1000).toLocaleTimeString(
@@ -41,6 +44,7 @@ function transformDataLineChartDamage(apiData) {
 }
 
 export default function AnalyticsMenu({ start_ut, end_ut }) {
+    const { t } = useTranslation();
     const { burstCount, largestDamageInstanceCount } = useContext(AppContext)
     const [damageOverTimeData, setDamageOverTimeData] = useState([])
     const [damagePieChartData, setDamagePieChartData] = useState([])
@@ -205,7 +209,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     
     return (
         <Box>
-            <Typography variant="h2" sx={{ marginBottom: "8px"}}>Analytics</Typography>
+            <Typography variant="h2" sx={{ marginBottom: "8px"}}>{t('analytics.title')}</Typography>
             <Grid container spacing={{ xs: 1, md: 2 }} alignItems="stretch" sx={{ flexGrow: 1 }}>
                 { /* Total Damage Card */}
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} sx={{ height: '220px' }} >
@@ -280,6 +284,15 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         <Skeleton variant="rounded"/>
                         )
                     }
+                </Grid>
+
+                <Grid size={{ xs: 12, lg: 6 }}>
+                    <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.skillDamage')}</Typography>
+                    <SkillDamageByPlayerTable start_ut={start_ut} end_ut={end_ut} />
+                </Grid>
+                <Grid size={{ xs: 12, lg: 6 }}>
+                    <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.skillDamageRanking')}</Typography>
+                    <SkillDamageRankingTable start_ut={start_ut} end_ut={end_ut} />
                 </Grid>
             </Grid>
        </Box >

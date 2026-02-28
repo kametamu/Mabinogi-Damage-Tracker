@@ -551,6 +551,107 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
+
+        public static List<Models.SkillDamageRow> Get_SkillDamage_ByPlayer_AndSkill(int start_ut, int end_ut)
+        {
+            List<Models.SkillDamageRow> query_results = new List<Models.SkillDamageRow>();
+            try
+            {
+                using (SqliteConnection connection = new SqliteConnection(db_connection))
+                {
+                    connection.Open();
+                    using (SqliteCommand command = new SqliteCommand(@"
+                        SELECT d.playerid,
+                               COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
+                               d.skill AS skillId,
+                               d.subskill AS subSkillId,
+                               SUM(d.damage) AS totalDamage,
+                               COUNT(*) AS hitCount
+                        FROM damages d
+                        LEFT JOIN players p ON p.playerid = d.playerid
+                        WHERE d.ut BETWEEN @start_ut AND @end_ut
+                        GROUP BY d.playerid, d.skill, d.subskill
+                        ORDER BY totalDamage DESC;
+                    ", connection))
+                    {
+                        command.Parameters.AddWithValue("@start_ut", start_ut);
+                        command.Parameters.AddWithValue("@end_ut", end_ut);
+
+                        using (SqliteDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                query_results.Add(new Models.SkillDamageRow
+                                {
+                                    playerId = reader.GetInt64(reader.GetOrdinal("playerid")),
+                                    playerName = reader.GetString(reader.GetOrdinal("playername")),
+                                    skillId = reader.GetInt32(reader.GetOrdinal("skillId")),
+                                    subSkillId = reader.IsDBNull(reader.GetOrdinal("subSkillId")) ? null : reader.GetInt32(reader.GetOrdinal("subSkillId")),
+                                    totalDamage = Convert.ToInt64(reader.GetDouble(reader.GetOrdinal("totalDamage"))),
+                                    hitCount = reader.GetInt32(reader.GetOrdinal("hitCount")),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                return new List<Models.SkillDamageRow>();
+            }
+
+            return query_results;
+        }
+
+        public static List<Models.SkillDamageRow> Get_SkillDamage_Ranking(int start_ut, int end_ut)
+        {
+            List<Models.SkillDamageRow> query_results = new List<Models.SkillDamageRow>();
+            try
+            {
+                using (SqliteConnection connection = new SqliteConnection(db_connection))
+                {
+                    connection.Open();
+                    using (SqliteCommand command = new SqliteCommand(@"
+                        SELECT d.playerid,
+                               COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
+                               d.skill AS skillId,
+                               SUM(d.damage) AS totalDamage,
+                               COUNT(*) AS hitCount
+                        FROM damages d
+                        LEFT JOIN players p ON p.playerid = d.playerid
+                        WHERE d.ut BETWEEN @start_ut AND @end_ut
+                        GROUP BY d.playerid, d.skill
+                        ORDER BY totalDamage DESC;
+                    ", connection))
+                    {
+                        command.Parameters.AddWithValue("@start_ut", start_ut);
+                        command.Parameters.AddWithValue("@end_ut", end_ut);
+
+                        using (SqliteDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                query_results.Add(new Models.SkillDamageRow
+                                {
+                                    playerId = reader.GetInt64(reader.GetOrdinal("playerid")),
+                                    playerName = reader.GetString(reader.GetOrdinal("playername")),
+                                    skillId = reader.GetInt32(reader.GetOrdinal("skillId")),
+                                    subSkillId = null,
+                                    totalDamage = Convert.ToInt64(reader.GetDouble(reader.GetOrdinal("totalDamage"))),
+                                    hitCount = reader.GetInt32(reader.GetOrdinal("hitCount")),
+                                });
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                return new List<Models.SkillDamageRow>();
+            }
+
+            return query_results;
+        }
         public static List<object> Get_AllDamages_GroupedByPlayers_BetweenUT(Int32 start_ut, Int32 end_ut)
         {
             try

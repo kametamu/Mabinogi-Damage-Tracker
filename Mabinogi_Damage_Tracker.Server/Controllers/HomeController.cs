@@ -117,6 +117,16 @@ namespace Mabinogi_Damage_tracker.Controllers
             return Json(new {data = row_id});
         }
 
+
+        public JsonResult GetSkillDamageByPlayerAndSkill(int start_ut, int end_ut)
+        {
+            return Json(db_helper.Get_SkillDamage_ByPlayer_AndSkill(start_ut, end_ut));
+        }
+
+        public JsonResult GetSkillDamageRanking(int start_ut, int end_ut)
+        {
+            return Json(db_helper.Get_SkillDamage_Ranking(start_ut, end_ut));
+        }
         public JsonResult GetPlayersFromRecording(int start_ut, int end_ut)
         {
             List<string> playernames = db_helper.Get_Players_From_Recording(start_ut, end_ut);

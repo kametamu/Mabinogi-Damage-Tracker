@@ -42,6 +42,16 @@
   },
   "analytics": {
     "largestHitBy": "Largest Hit by {{player}}",
-    "skillLabel": "Skill"
+    "skillLabel": "Skill",
+    "title": "Analytics",
+    "skillDamage": "Skill Damage",
+    "skillDamageRanking": "Skill Damage Ranking",
+    "player": "Player",
+    "skill": "Skill",
+    "totalDamage": "Total Damage",
+    "hits": "Hits",
+    "search": "Search / Filter",
+    "noRows": "No rows",
+    "all": "All"
   }
 }
