@@ -564,10 +564,7 @@ namespace Mabinogi_Damage_tracker
                     using (SqliteCommand command = new SqliteCommand(@"
                         SELECT d.playerid,
                                COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
-                               CASE
-                                   WHEN d.subskill IS NOT NULL AND d.subskill != 0 THEN d.subskill
-                                   ELSE d.skill
-                               END AS skillId,
+                               d.skill AS skillId,
                                d.subskill AS subSkillId,
                                SUM(d.damage) AS totalDamage,
                                COUNT(*) AS hitCount
@@ -575,12 +572,7 @@ namespace Mabinogi_Damage_tracker
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
                           AND d.skill IS NOT NULL
-                        GROUP BY d.playerid,
-                                 CASE
-                                     WHEN d.subskill IS NOT NULL AND d.subskill != 0 THEN d.subskill
-                                     ELSE d.skill
-                                 END,
-                                 d.subskill
+                        GROUP BY d.playerid, d.skill, d.subskill
                         ORDER BY totalDamage DESC;
                     ", connection))
                     {
@@ -591,12 +583,15 @@ namespace Mabinogi_Damage_tracker
                         {
                             while (reader.Read())
                             {
+                                int skillId = reader.GetInt32(reader.GetOrdinal("skillId"));
+                                int? subSkillId = reader.IsDBNull(reader.GetOrdinal("subSkillId")) ? null : reader.GetInt32(reader.GetOrdinal("subSkillId"));
+
                                 query_results.Add(new Models.SkillDamageRow
                                 {
                                     playerId = reader.GetInt64(reader.GetOrdinal("playerid")),
                                     playerName = reader.GetString(reader.GetOrdinal("playername")),
-                                    skillId = reader.GetInt32(reader.GetOrdinal("skillId")),
-                                    subSkillId = reader.IsDBNull(reader.GetOrdinal("subSkillId")) ? null : reader.GetInt32(reader.GetOrdinal("subSkillId")),
+                                    skillId = ResolveDisplaySkillId(skillId, subSkillId),
+                                    subSkillId = subSkillId,
                                     totalDamage = Convert.ToInt64(reader.GetDouble(reader.GetOrdinal("totalDamage"))),
                                     hitCount = reader.GetInt32(reader.GetOrdinal("hitCount")),
                                 });
@@ -624,21 +619,15 @@ namespace Mabinogi_Damage_tracker
                     using (SqliteCommand command = new SqliteCommand(@"
                         SELECT d.playerid,
                                COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
-                               CASE
-                                   WHEN d.subskill IS NOT NULL AND d.subskill != 0 THEN d.subskill
-                                   ELSE d.skill
-                               END AS skillId,
+                               d.skill AS skillId,
+                               d.subskill AS subSkillId,
                                SUM(d.damage) AS totalDamage,
                                COUNT(*) AS hitCount
                         FROM damages d
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
                           AND d.skill IS NOT NULL
-                        GROUP BY d.playerid,
-                                 CASE
-                                     WHEN d.subskill IS NOT NULL AND d.subskill != 0 THEN d.subskill
-                                     ELSE d.skill
-                                 END
+                        GROUP BY d.playerid, d.skill, d.subskill
                         ORDER BY totalDamage DESC;
                     ", connection))
                     {
@@ -649,12 +638,15 @@ namespace Mabinogi_Damage_tracker
                         {
                             while (reader.Read())
                             {
+                                int skillId = reader.GetInt32(reader.GetOrdinal("skillId"));
+                                int? subSkillId = reader.IsDBNull(reader.GetOrdinal("subSkillId")) ? null : reader.GetInt32(reader.GetOrdinal("subSkillId"));
+
                                 query_results.Add(new Models.SkillDamageRow
                                 {
                                     playerId = reader.GetInt64(reader.GetOrdinal("playerid")),
                                     playerName = reader.GetString(reader.GetOrdinal("playername")),
-                                    skillId = reader.GetInt32(reader.GetOrdinal("skillId")),
-                                    subSkillId = null,
+                                    skillId = ResolveDisplaySkillId(skillId, subSkillId),
+                                    subSkillId = subSkillId,
                                     totalDamage = Convert.ToInt64(reader.GetDouble(reader.GetOrdinal("totalDamage"))),
                                     hitCount = reader.GetInt32(reader.GetOrdinal("hitCount")),
                                 });
@@ -669,6 +661,41 @@ namespace Mabinogi_Damage_tracker
             }
 
             return query_results;
+        }
+
+        private static int ResolveDisplaySkillId(int skillId, int? subSkillId)
+        {
+            if (IsKnownSkillId(subSkillId))
+            {
+                return subSkillId!.Value;
+            }
+
+            if (IsKnownSkillId(skillId))
+            {
+                return skillId;
+            }
+
+            if (subSkillId.HasValue && subSkillId.Value > 0)
+            {
+                return subSkillId.Value;
+            }
+
+            return skillId;
+        }
+
+        private static bool IsKnownSkillId(int? skillId)
+        {
+            if (!skillId.HasValue)
+            {
+                return false;
+            }
+
+            if (skillId.Value < ushort.MinValue || skillId.Value > ushort.MaxValue)
+            {
+                return false;
+            }
+
+            return Enum.IsDefined(typeof(SkillId), (ushort)skillId.Value);
         }
         public static List<object> Get_AllDamages_GroupedByPlayers_BetweenUT(Int32 start_ut, Int32 end_ut)
         {
