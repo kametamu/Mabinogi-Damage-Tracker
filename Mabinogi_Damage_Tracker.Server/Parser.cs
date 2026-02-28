@@ -28,7 +28,7 @@ namespace Mabinogi_Damage_tracker
         
         public static bool pause = false;
         #if DEBUG_LIVE || RELEASE
-            static LibPcapLiveDevice device = null;
+            static LibPcapLiveDevice? device = null;
         #endif
         #if DEBUG_FILE
             static CaptureFileReaderDevice device = new CaptureFileReaderDevice("C:/packets/full glenn vhm run.pcapng");
@@ -307,7 +307,7 @@ namespace Mabinogi_Damage_tracker
             return;
         }
 
-        private static void pack_healing(TcpPacket tcp, int cursor, ref List<healing> healing_packs, int sub_packet_length, int begining_of_packet_cursor)
+        private static void pack_healing(TcpPacket tcp, int cursor, ref List<Healing> healing_packs, int sub_packet_length, int begining_of_packet_cursor)
         {
             #region healing packet notes
             //healing packets have 2 back to back opcodes the firstpacket has plain text 'healing'
@@ -334,7 +334,7 @@ namespace Mabinogi_Damage_tracker
             try
             {
                 byte heal_type = tcp.PayloadData[cursor + sizeof(UInt64)];
-                healing healpack = new healing();
+                Healing healpack = new Healing();
 
                 switch (heal_type)
                 {
@@ -356,7 +356,7 @@ namespace Mabinogi_Damage_tracker
                         while (cursor < sub_packet_length + begining_of_packet_cursor)
                         {
                             if (tcp.PayloadData[cursor] != 4) { break; }
-                            healing multiheal = new healing();
+                            Healing multiheal = new Healing();
                             multiheal.recepient = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor + 1));
                             multiheal.caster = last_healer;
                             healing_packs.Add(multiheal);
