@@ -614,7 +614,32 @@ namespace Mabinogi_Damage_tracker
                         // NOTE:
                         // rawSkillId/rawSubSkillId from the damage block are often unreliable.
                         // Prefer attacker-info (ttype & 2) only when it resolves to a known skill.
-                        bool useAttackerCandidate = attackerKnown && (!damageKnown || (attackerKnown && damageKnown));
+                        int combatMasteryId = (int)SkillId.CombatMastery;
+                        bool useAttackerCandidate;
+                        if (attackerKnown && !damageKnown)
+                        {
+                            useAttackerCandidate = true;
+                        }
+                        else if (!attackerKnown && damageKnown)
+                        {
+                            useAttackerCandidate = false;
+                        }
+                        else if (attackerKnown && damageKnown)
+                        {
+                            if (attackerNormalized.resolvedSkill == combatMasteryId &&
+                                damageNormalized.resolvedSkill != combatMasteryId)
+                            {
+                                useAttackerCandidate = false;
+                            }
+                            else
+                            {
+                                useAttackerCandidate = true;
+                            }
+                        }
+                        else
+                        {
+                            useAttackerCandidate = false;
+                        }
 
                         ushort useSkill = useAttackerCandidate ? aSkill : dSkill;
                         ushort useSubSkill = useAttackerCandidate ? aSubSkill : dSubSkill;
