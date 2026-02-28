@@ -571,6 +571,7 @@ namespace Mabinogi_Damage_tracker
                         FROM damages d
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
+                          AND d.skill IS NOT NULL
                         GROUP BY d.playerid, d.skill, d.subskill
                         ORDER BY totalDamage DESC;
                     ", connection))
@@ -621,6 +622,7 @@ namespace Mabinogi_Damage_tracker
                         FROM damages d
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
+                          AND d.skill IS NOT NULL
                         GROUP BY d.playerid, d.skill
                         ORDER BY totalDamage DESC;
                     ", connection))

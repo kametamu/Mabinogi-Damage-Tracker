@@ -269,7 +269,6 @@ export default function LiveMenu() {
                 </Grid>
 
                 <Grid item size={{ xs: 12, sm: 12, lg: 12, xl: 8 }}>
-                    <Typography variant="h5" sx={{ mb: 1 }}>{t('analytics.liveSkillDamage')}</Typography>
                     <LiveSkillDamageTable startUT={startUT} recording={recording} />
                 </Grid>
             </Grid>

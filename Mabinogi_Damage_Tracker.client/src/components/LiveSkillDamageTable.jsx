@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { DataGrid } from '@mui/x-data-grid';
 import Paper from '@mui/material/Paper';
+import Typography from '@mui/material/Typography';
 import { localizeSkillName } from '../localization/skills';
 
 const paginationModel = { page: 0, pageSize: 5 };
@@ -64,7 +65,8 @@ export default function LiveSkillDamageTable({ startUT, recording }) {
   ], [i18n.language, t]);
 
   return (
-    <Paper sx={{ p: 1 }}>
+    <Paper square={false} sx={{ p: 2, height: '100%' }}>
+      <Typography variant="h4" sx={{ mb: 2 }}>{t('analytics.liveSkillDamage')}</Typography>
       <DataGrid
         rows={rows}
         columns={columns}
@@ -74,7 +76,7 @@ export default function LiveSkillDamageTable({ startUT, recording }) {
           sorting: { sortModel: [{ field: 'totalDamage', sort: 'desc' }] },
         }}
         disableRowSelectionOnClick
-        sx={{ border: 0 }}
+        sx={{ border: 0, minHeight: 260 }}
         localeText={{ noRowsLabel: t('analytics.noRows') }}
       />
     </Paper>
