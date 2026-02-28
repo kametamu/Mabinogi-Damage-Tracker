@@ -53,6 +53,11 @@
     "search": "検索 / フィルター",
     "noRows": "データがありません",
     "all": "すべて",
-    "liveSkillDamage": "ライブ スキル別ダメージ"
+    "liveSkillDamage": "ライブ スキル別ダメージ",
+    "unknownSkillsDebug": "不明なスキル（デバッグ）",
+    "skillId": "スキルID",
+    "count": "件数",
+    "copy": "コピー",
+    "unknownSkillsHelper": "アップデート後に不明IDが多い場合、スキル辞書の更新またはパース仕様の変更が考えられます。"
   }
 }

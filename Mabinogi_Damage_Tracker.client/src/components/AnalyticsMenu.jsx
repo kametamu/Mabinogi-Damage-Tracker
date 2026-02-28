@@ -17,6 +17,7 @@ import BurstCard from './BurstCard';
 import HealingCard from './HealingCard';
 import SkillDamageByPlayerTable from './SkillDamageByPlayerTable';
 import SkillDamageRankingTable from './SkillDamageRankingTable';
+import UnknownSkillsDebugPanel from './UnknownSkillsDebugPanel';
 
 function formatTimeStamp(ut) {
     return new Date((ut) * 1000).toLocaleTimeString(
@@ -293,6 +294,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                 <Grid size={{ xs: 12, lg: 6 }}>
                     <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.skillDamageRanking')}</Typography>
                     <SkillDamageRankingTable start_ut={start_ut} end_ut={end_ut} />
+                </Grid>
+
+                <Grid size={12}>
+                    <UnknownSkillsDebugPanel start_ut={start_ut} end_ut={end_ut} />
                 </Grid>
             </Grid>
        </Box >

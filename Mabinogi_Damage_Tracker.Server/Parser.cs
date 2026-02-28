@@ -592,14 +592,15 @@ namespace Mabinogi_Damage_tracker
                         if (attacker_id < 0x0010000000000001 || attacker_id > 0x0010010000000001)
                         { break; }
 
-                        int effectiveSkillId = ResolveEffectiveSkillId(rawSkillId, rawSubSkillId);
+                        var normalizedSkill = SkillNormalization.Resolve(rawSkillId, rawSubSkillId);
+                        int effectiveSkillId = normalizedSkill.resolvedSkill;
 
                         if(damage < 0 || damage > 100000000 || rawSkillId == 601 || rawSkillId == 512 || rawSkillId == 590) { break; }
                         if (effectiveSkillId < 10) { break; }
 
                         LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker_id, enemy_id, damage));
-                        Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, raw {6}:{7}, effective {8}", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill, effectiveSkillId);
-                        db_helper.add_damage((Int64)attacker_id, damage, wound, (int)manaDamage, (Int64)enemy_id, effectiveSkillId, rawSubSkillId);
+                        Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, raw {6}:{7}, effective {8} ({9})", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill, effectiveSkillId, normalizedSkill.reason);
+                        db_helper.add_damage((Int64)attacker_id, damage, wound, (int)manaDamage, (Int64)enemy_id, effectiveSkillId, rawSkillId, rawSubSkillId);
                     }
                     cursor = subsub_pack_start_cursor + (int)subsub_pack_len;
                 }
@@ -616,21 +617,6 @@ namespace Mabinogi_Damage_tracker
                 cursor = (int)sub_packet_length + begining_of_packet_cursor;
                 Debug.WriteLine("caught an execption after finding a damage packet: ex {0}", ex.ToString());
             }
-        }
-
-        private static int ResolveEffectiveSkillId(int skillId, int subSkillId)
-        {
-            if (subSkillId >= 20000 && subSkillId <= 50000)
-            {
-                return subSkillId;
-            }
-
-            if (skillId >= 20000 && skillId <= 50000)
-            {
-                return skillId;
-            }
-
-            return skillId;
         }
 
         private static void read_chat(TcpPacket packet, int cursor)
@@ -719,4 +705,3 @@ namespace Mabinogi_Damage_tracker
 
     }
 }
-

@@ -53,6 +53,11 @@
     "search": "Search / Filter",
     "noRows": "No rows",
     "all": "All",
-    "liveSkillDamage": "Live Skill Damage"
+    "liveSkillDamage": "Live Skill Damage",
+    "unknownSkillsDebug": "Unknown Skills (Debug)",
+    "skillId": "Skill ID",
+    "count": "Count",
+    "copy": "Copy",
+    "unknownSkillsHelper": "If you see many unknown IDs after an update, skill dictionary may need updating or parsing may have changed."
   }
 }

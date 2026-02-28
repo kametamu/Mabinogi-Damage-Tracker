@@ -68,12 +68,108 @@ namespace Mabinogi_Damage_tracker
                 sqliteCommand.ExecuteNonQuery();
                 sqliteCommand.CommandText = create_damage;
                 sqliteCommand.ExecuteNonQuery();
+
+                EnsureDamageColumns(connection);
+                BackfillDamageSkillNormalization(connection);
+
                 sqliteCommand.CommandText = create_heal;
                 sqliteCommand.ExecuteNonQuery();
                 sqliteCommand.CommandText = create_recording;
                 sqliteCommand.ExecuteNonQuery();
                 sqliteCommand.CommandText = create_adapter;
                 sqliteCommand.ExecuteNonQuery();
+            }
+        }
+
+        private static void EnsureDamageColumns(SqliteConnection connection)
+        {
+            var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            using (SqliteCommand command = new SqliteCommand("PRAGMA table_info(damages);", connection))
+            using (SqliteDataReader reader = command.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    existingColumns.Add(reader.GetString(reader.GetOrdinal("name")));
+                }
+            }
+
+            AddColumnIfMissing(connection, existingColumns, "raw_skill", "INTEGER");
+            AddColumnIfMissing(connection, existingColumns, "raw_subskill", "INTEGER");
+            AddColumnIfMissing(connection, existingColumns, "resolved_skill", "INTEGER");
+            AddColumnIfMissing(connection, existingColumns, "normalization_version", "INTEGER");
+        }
+
+        private static void AddColumnIfMissing(SqliteConnection connection, HashSet<string> existingColumns, string columnName, string type)
+        {
+            if (existingColumns.Contains(columnName))
+            {
+                return;
+            }
+
+            using (SqliteCommand command = new SqliteCommand($"ALTER TABLE damages ADD COLUMN {columnName} {type};", connection))
+            {
+                command.ExecuteNonQuery();
+            }
+
+            existingColumns.Add(columnName);
+        }
+
+        private static void BackfillDamageSkillNormalization(SqliteConnection connection)
+        {
+            using (SqliteCommand command = new SqliteCommand(@"
+                UPDATE damages
+                SET raw_skill = skill
+                WHERE raw_skill IS NULL;
+
+                UPDATE damages
+                SET raw_subskill = subskill
+                WHERE raw_subskill IS NULL;
+            ", connection))
+            {
+                command.ExecuteNonQuery();
+            }
+
+            var updates = new List<(long id, int resolvedSkill, int rawSubSkill)>();
+
+            using (SqliteCommand command = new SqliteCommand(@"
+                SELECT id, COALESCE(raw_skill, skill) AS raw_skill, COALESCE(raw_subskill, subskill) AS raw_subskill
+                FROM damages
+                WHERE resolved_skill IS NULL OR normalization_version IS NULL OR normalization_version <> @version;
+            ", connection))
+            {
+                command.Parameters.AddWithValue("@version", SkillNormalization.Version);
+
+                using (SqliteDataReader reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        long id = reader.GetInt64(reader.GetOrdinal("id"));
+                        int rawSkill = reader.GetInt32(reader.GetOrdinal("raw_skill"));
+                        int rawSubSkill = reader.GetInt32(reader.GetOrdinal("raw_subskill"));
+                        int resolvedSkill = SkillNormalization.Resolve(rawSkill, rawSubSkill).resolvedSkill;
+                        updates.Add((id, resolvedSkill, rawSubSkill));
+                    }
+                }
+            }
+
+            foreach (var update in updates)
+            {
+                using (SqliteCommand updateCommand = new SqliteCommand(@"
+                    UPDATE damages
+                    SET resolved_skill = @resolvedSkill,
+                        normalization_version = @version,
+                        skill = @resolvedSkill,
+                        subskill = @rawSubSkill
+                    WHERE id = @id;
+                ", connection))
+                {
+                    updateCommand.Parameters.AddWithValue("@resolvedSkill", update.resolvedSkill);
+                    updateCommand.Parameters.AddWithValue("@rawSubSkill", update.rawSubSkill);
+                    updateCommand.Parameters.AddWithValue("@version", SkillNormalization.Version);
+                    updateCommand.Parameters.AddWithValue("@id", update.id);
+                    updateCommand.ExecuteNonQuery();
+                }
             }
         }
 
@@ -139,7 +235,7 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
-        public static void add_damage(Int64 playerid, double damage, double wound, int manadamage, Int64 enemyid, int skill, int subskill)
+        public static void add_damage(Int64 playerid, double damage, double wound, int manadamage, Int64 enemyid, int resolvedSkill, int rawSkill, int rawSubSkill)
         {
             try
             {
@@ -147,16 +243,18 @@ namespace Mabinogi_Damage_tracker
                 {
                     connection.Open();
                     SqliteCommand add_command = new SqliteCommand(@"
-                    INSERT INTO damages (playerid, damage, wound, manadamage, enemyid, skill, subskill, dt, ut)
-                        VALUES(@id,@dmg,@wound,@manadamage,@enemyid,@skill,@subskill,datetime(), unixepoch())
+                    INSERT INTO damages (playerid, damage, wound, manadamage, enemyid, skill, subskill, raw_skill, raw_subskill, resolved_skill, normalization_version, dt, ut)
+                        VALUES(@id,@dmg,@wound,@manadamage,@enemyid,@resolvedSkill,@rawSubSkill,@rawSkill,@rawSubSkill,@resolvedSkill,@normalizationVersion,datetime(), unixepoch())
                     ", connection);
                     add_command.Parameters.AddWithValue("@id", playerid);
                     add_command.Parameters.AddWithValue("@dmg", damage);
                     add_command.Parameters.AddWithValue("@wound", wound);
                     add_command.Parameters.AddWithValue("@manadamage", manadamage);
                     add_command.Parameters.AddWithValue("@enemyid", enemyid);
-                    add_command.Parameters.AddWithValue("@skill", skill);
-                    add_command.Parameters.AddWithValue("@subskill", subskill);
+                    add_command.Parameters.AddWithValue("@resolvedSkill", resolvedSkill);
+                    add_command.Parameters.AddWithValue("@rawSkill", rawSkill);
+                    add_command.Parameters.AddWithValue("@rawSubSkill", rawSubSkill);
+                    add_command.Parameters.AddWithValue("@normalizationVersion", SkillNormalization.Version);
                     add_command.ExecuteNonQueryAsync();
                 }
             }
@@ -564,7 +662,7 @@ namespace Mabinogi_Damage_tracker
                     using (SqliteCommand command = new SqliteCommand(@"
                         SELECT d.playerid,
                                COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
-                               d.skill AS skillId,
+                               COALESCE(d.resolved_skill, d.skill) AS skillId,
                                d.subskill AS subSkillId,
                                SUM(d.damage) AS totalDamage,
                                COUNT(*) AS hitCount
@@ -572,7 +670,7 @@ namespace Mabinogi_Damage_tracker
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
                           AND d.skill IS NOT NULL
-                        GROUP BY d.playerid, d.skill, d.subskill
+                        GROUP BY d.playerid, COALESCE(d.resolved_skill, d.skill), d.subskill
                         ORDER BY totalDamage DESC;
                     ", connection))
                     {
@@ -619,7 +717,7 @@ namespace Mabinogi_Damage_tracker
                     using (SqliteCommand command = new SqliteCommand(@"
                         SELECT d.playerid,
                                COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
-                               d.skill AS skillId,
+                               COALESCE(d.resolved_skill, d.skill) AS skillId,
                                d.subskill AS subSkillId,
                                SUM(d.damage) AS totalDamage,
                                COUNT(*) AS hitCount
@@ -627,7 +725,7 @@ namespace Mabinogi_Damage_tracker
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
                           AND d.skill IS NOT NULL
-                        GROUP BY d.playerid, d.skill, d.subskill
+                        GROUP BY d.playerid, COALESCE(d.resolved_skill, d.skill), d.subskill
                         ORDER BY totalDamage DESC;
                     ", connection))
                     {
@@ -661,6 +759,69 @@ namespace Mabinogi_Damage_tracker
             }
 
             return query_results;
+        }
+
+        public static List<object> Get_UnknownSkillStats(int start_ut, int end_ut, int top = 20, int minCount = 1)
+        {
+            var queryResults = new List<object>();
+            var grouped = new List<(int skillId, int count)>();
+            int sqlLimit = Math.Max(top * 10, 200);
+
+            try
+            {
+                using (SqliteConnection connection = new SqliteConnection(db_connection))
+                {
+                    connection.Open();
+                    using (SqliteCommand command = new SqliteCommand(@"
+                        SELECT COALESCE(resolved_skill, skill) AS skillId,
+                               COUNT(*) AS hitCount
+                        FROM damages
+                        WHERE ut BETWEEN @start_ut AND @end_ut
+                        GROUP BY COALESCE(resolved_skill, skill)
+                        ORDER BY hitCount DESC
+                        LIMIT @limit;
+                    ", connection))
+                    {
+                        command.Parameters.AddWithValue("@start_ut", start_ut);
+                        command.Parameters.AddWithValue("@end_ut", end_ut);
+                        command.Parameters.AddWithValue("@limit", sqlLimit);
+
+                        using (SqliteDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                grouped.Add((
+                                    reader.GetInt32(reader.GetOrdinal("skillId")),
+                                    reader.GetInt32(reader.GetOrdinal("hitCount"))
+                                ));
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                return queryResults;
+            }
+
+            foreach (var row in grouped)
+            {
+                if (row.count < minCount) { continue; }
+                if (SkillDictionary.IsKnownSkillId(row.skillId)) { continue; }
+
+                queryResults.Add(new
+                {
+                    skillId = row.skillId,
+                    count = row.count,
+                });
+
+                if (queryResults.Count >= top)
+                {
+                    break;
+                }
+            }
+
+            return queryResults;
         }
 
         private static int ResolveDisplaySkillId(int skillId, int? subSkillId)
