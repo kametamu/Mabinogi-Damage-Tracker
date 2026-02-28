@@ -40,7 +40,11 @@ namespace Mabinogi_Damage_tracker
         //i am unconvinced this is the best way to handle the thread managing the event handler
         public static bool Stop()
         {
-            
+            if (device == null)
+            {
+                return true;
+            }
+
             device.Close();
             device.StopCapture();
             device.OnPacketArrival -= Device_OnPacketArrival;
@@ -125,6 +129,11 @@ namespace Mabinogi_Damage_tracker
             }
             #endif
 
+            if (device == null)
+            {
+                return;
+            }
+
             try
              {
                 device.Open(DeviceModes.Promiscuous);
@@ -162,9 +171,9 @@ namespace Mabinogi_Damage_tracker
                 captureFileWriter.Write(raw);
             }
 
-            Packet packet = PacketDotNet.Packet.ParsePacket(raw.LinkLayerType, raw.Data);
+            PacketDotNet.Packet parsedPacket = PacketDotNet.Packet.ParsePacket(raw.LinkLayerType, raw.Data);
 
-            TcpPacket tcp = packet.Extract<PacketDotNet.TcpPacket>();
+            TcpPacket tcp = parsedPacket.Extract<PacketDotNet.TcpPacket>();
 
             if(tcp == null) { return; }
 
@@ -340,15 +349,15 @@ namespace Mabinogi_Damage_tracker
                 switch (heal_type)
                 {
                     case 0x0A:  //healing received
-                        healpack.recepient = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor));
+                        healpack.recepient = BinaryPrimitives.ReadUInt64BigEndian(payload.AsSpan(cursor));
                         healpack.heal = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor + 17));
                         healing_packs.Add(healpack);
                         break;
                     case 0x19: //healing cast
-                        last_healer = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor));
+                        last_healer = BinaryPrimitives.ReadUInt64BigEndian(payload.AsSpan(cursor));
                         break;
                     case 0x28: //party healing
-                        last_healer = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor));
+                        last_healer = BinaryPrimitives.ReadUInt64BigEndian(payload.AsSpan(cursor));
                         //get the string length
                         cursor += 19;
                         int stringlength = tcp.PayloadData[cursor];
@@ -373,6 +382,12 @@ namespace Mabinogi_Damage_tracker
 
         private static void pack_damage(TcpPacket tcp, int cursor, int sub_packet_length, int begining_of_packet_cursor)
         {
+            byte[]? payload = tcp.PayloadData;
+            if (payload == null)
+            {
+                return;
+            }
+
             try
             {
 #if DEBUG_FILE
@@ -380,24 +395,24 @@ namespace Mabinogi_Damage_tracker
                 Thread.Sleep(rand.Next(55));
 #endif
 
-                UInt64 sub_packet_id = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor));
+                UInt64 sub_packet_id = BinaryPrimitives.ReadUInt64BigEndian(payload.AsSpan(cursor));
                 cursor += sizeof(UInt64);
 
                 UInt64 throwaway_uvint64;
                 int variable_int_bytesread;
-                read_variable_length_uint64(tcp.PayloadData.AsSpan(cursor), out throwaway_uvint64, out variable_int_bytesread);
+                read_variable_length_uint64(payload.AsSpan(cursor), out throwaway_uvint64, out variable_int_bytesread);
                 cursor += variable_int_bytesread;
 
-                byte sub_item_count = tcp.PayloadData[cursor];
+                byte sub_item_count = payload[cursor];
                 cursor += sizeof(byte);
 
-                if (tcp.PayloadData[cursor] != 0)
+                if (payload[cursor] != 0)
                 {
                     return;
                 }
                 cursor++;
 
-                var reader = new OuterReader(tcp.PayloadData, cursor);
+                var reader = new OuterReader(payload, cursor);
 
                 int actionpack_id = reader.GetInt();
                 int prev_actionpack_id = reader.GetInt();
@@ -619,10 +634,16 @@ namespace Mabinogi_Damage_tracker
 
         private static void read_chat(TcpPacket packet, int cursor)
         {
+            byte[]? payload = packet.PayloadData;
+            if (payload == null)
+            {
+                return;
+            }
+
             try
             {
                 //the next uint64 is the palyer id
-                UInt64 playerid = BinaryPrimitives.ReadUInt64BigEndian(packet.PayloadData.AsSpan(cursor));
+                UInt64 playerid = BinaryPrimitives.ReadUInt64BigEndian(payload.AsSpan(cursor));
 
                 if (playerid < 0x0010000000000001 || playerid > 0x0010010000000001)
                 {
@@ -635,13 +656,13 @@ namespace Mabinogi_Damage_tracker
                 }
 
                 cursor = 25;
-                byte namelength = packet.PayloadData[25];
+                byte namelength = payload[25];
 
                 if (namelength > 36 || namelength <= 1) { return; }
                 cursor++;
                 //the next [namelength] bytes is the name
 
-                string playername = Encoding.UTF8.GetString(packet.PayloadData, cursor, (int)namelength - 1);
+                string playername = Encoding.UTF8.GetString(payload, cursor, (int)namelength - 1);
                 playername = playername.Trim();
 
                 if (string.IsNullOrWhiteSpace(playername))
@@ -663,7 +684,10 @@ namespace Mabinogi_Damage_tracker
             catch
             {
                 Debug.WriteLine("couldnt parse a name packet saving packet");
-                captureFileWriter.Write(packet.PayloadData);
+                if (payload != null)
+                {
+                    captureFileWriter.Write(payload);
+                }
             }
         }
 
