@@ -599,27 +599,41 @@ namespace Mabinogi_Damage_tracker
                         if (attacker_id < 0x0010000000000001 || attacker_id > 0x0010010000000001)
                         { break; }
 
+                        ushort aSkill = lastRawSkillId;
+                        ushort aSubSkill = lastRawSubSkillId;
+                        ushort dSkill = rawSkillId;
+                        ushort dSubSkill = rawSubSkillId;
+
+                        var attackerNormalized = SkillNormalization.Resolve(aSkill, aSubSkill);
+                        var damageNormalized = SkillNormalization.Resolve(dSkill, dSubSkill);
+
+                        bool attackerHasValue = hasLastSkill && !(aSkill == 0 && aSubSkill == 0);
+                        bool attackerKnown = attackerHasValue && attackerNormalized.resolvedSkill != 0 && SkillDictionary.IsKnownSkillId(attackerNormalized.resolvedSkill);
+                        bool damageKnown = damageNormalized.resolvedSkill != 0 && SkillDictionary.IsKnownSkillId(damageNormalized.resolvedSkill);
+
                         // NOTE:
                         // rawSkillId/rawSubSkillId from the damage block are often unreliable.
-                        // Prefer attacker-info (ttype & 2) values captured earlier in this event.
-                        ushort useSkill = hasLastSkill ? lastRawSkillId : rawSkillId;
-                        ushort useSubSkill = hasLastSkill ? lastRawSubSkillId : rawSubSkillId;
+                        // Prefer attacker-info (ttype & 2) only when it resolves to a known skill.
+                        bool useAttackerCandidate = attackerKnown && (!damageKnown || (attackerKnown && damageKnown));
 
-                        if (!hasLastSkill)
-                        {
-                            Debug.WriteLine("[SKILL RESOLUTION FALLBACK] attacker-info skill was unavailable; using damage-block raw values.");
-                        }
-
-                        var normalizedSkill = SkillNormalization.Resolve(useSkill, useSubSkill);
+                        ushort useSkill = useAttackerCandidate ? aSkill : dSkill;
+                        ushort useSubSkill = useAttackerCandidate ? aSubSkill : dSubSkill;
+                        var normalizedSkill = useAttackerCandidate ? attackerNormalized : damageNormalized;
+                        bool chosenKnown = useAttackerCandidate ? attackerKnown : damageKnown;
                         int effectiveSkillId = normalizedSkill.resolvedSkill;
+
+                        if (!attackerKnown && !damageKnown)
+                        {
+                            Debug.WriteLine("[SKILL RESOLUTION UNKNOWN] attacker {0}:{1}, damage {2}:{3}, chosen {4}:{5}, resolved {6}", aSkill, aSubSkill, dSkill, dSubSkill, useSkill, useSubSkill, effectiveSkillId);
+                        }
 
                         skill = (SkillId)useSkill;
                         subskill = (SkillId)useSubSkill;
 
                         if (damage < 0 || damage > 100000000 || useSkill == 601 || useSkill == 512 || useSkill == 590) { break; }
 
-                        // If attacker-info skill was unavailable, keep a light guard against obvious packet noise.
-                        if (!hasLastSkill && effectiveSkillId < 10) { break; }
+                        // Only guard low skill ids on fallback/unknown paths to avoid dropping valid known skills.
+                        if ((!chosenKnown || !hasLastSkill) && effectiveSkillId < 10) { break; }
 
                         LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker_id, enemy_id, damage));
                         Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, raw {6}:{7}, effective {8} ({9})", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill, effectiveSkillId, normalizedSkill.reason);
