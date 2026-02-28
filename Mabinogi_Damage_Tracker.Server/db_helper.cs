@@ -564,7 +564,10 @@ namespace Mabinogi_Damage_tracker
                     using (SqliteCommand command = new SqliteCommand(@"
                         SELECT d.playerid,
                                COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
-                               d.skill AS skillId,
+                               CASE
+                                   WHEN d.subskill IS NOT NULL AND d.subskill != 0 THEN d.subskill
+                                   ELSE d.skill
+                               END AS skillId,
                                d.subskill AS subSkillId,
                                SUM(d.damage) AS totalDamage,
                                COUNT(*) AS hitCount
@@ -572,7 +575,12 @@ namespace Mabinogi_Damage_tracker
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
                           AND d.skill IS NOT NULL
-                        GROUP BY d.playerid, d.skill, d.subskill
+                        GROUP BY d.playerid,
+                                 CASE
+                                     WHEN d.subskill IS NOT NULL AND d.subskill != 0 THEN d.subskill
+                                     ELSE d.skill
+                                 END,
+                                 d.subskill
                         ORDER BY totalDamage DESC;
                     ", connection))
                     {
@@ -616,14 +624,21 @@ namespace Mabinogi_Damage_tracker
                     using (SqliteCommand command = new SqliteCommand(@"
                         SELECT d.playerid,
                                COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
-                               d.skill AS skillId,
+                               CASE
+                                   WHEN d.subskill IS NOT NULL AND d.subskill != 0 THEN d.subskill
+                                   ELSE d.skill
+                               END AS skillId,
                                SUM(d.damage) AS totalDamage,
                                COUNT(*) AS hitCount
                         FROM damages d
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
                           AND d.skill IS NOT NULL
-                        GROUP BY d.playerid, d.skill
+                        GROUP BY d.playerid,
+                                 CASE
+                                     WHEN d.subskill IS NOT NULL AND d.subskill != 0 THEN d.subskill
+                                     ELSE d.skill
+                                 END
                         ORDER BY totalDamage DESC;
                     ", connection))
                     {
