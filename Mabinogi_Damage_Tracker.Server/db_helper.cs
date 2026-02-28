@@ -665,13 +665,6 @@ namespace Mabinogi_Damage_tracker
 
         private static int ResolveDisplaySkillId(int skillId, int? subSkillId)
         {
-            // In combat packets, `skill` can be a broad mastery/passive while `subskill` carries the concrete action.
-            // Prefer subskill when it is present and different so we do not collapse rows into Combat Mastery.
-            if (subSkillId.HasValue && subSkillId.Value > 0 && subSkillId.Value != skillId)
-            {
-                return subSkillId.Value;
-            }
-
             if (IsKnownSkillId(skillId))
             {
                 return skillId;
@@ -680,11 +673,6 @@ namespace Mabinogi_Damage_tracker
             if (IsKnownSkillId(subSkillId))
             {
                 return subSkillId!.Value;
-            }
-
-            if (subSkillId.HasValue && subSkillId.Value > 0)
-            {
-                return subSkillId.Value;
             }
 
             return skillId;
