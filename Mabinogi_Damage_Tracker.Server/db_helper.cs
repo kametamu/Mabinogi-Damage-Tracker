@@ -191,7 +191,7 @@ namespace Mabinogi_Damage_tracker
                     ", connection);
                     add_command.Parameters.AddWithValue("@playerid", playerid);
                     add_command.Parameters.AddWithValue("@playername", playername);
-                    add_command.ExecuteNonQueryAsync();
+                    add_command.ExecuteNonQuery();
                 }
             }
             catch
@@ -259,7 +259,7 @@ namespace Mabinogi_Damage_tracker
                     add_command.Parameters.AddWithValue("@rawSkill", rawSkill);
                     add_command.Parameters.AddWithValue("@rawSubSkill", rawSubSkill);
                     add_command.Parameters.AddWithValue("@normalizationVersion", SkillNormalization.Version);
-                    add_command.ExecuteNonQueryAsync();
+                    add_command.ExecuteNonQuery();
                 }
             }
             catch (Exception ex)
@@ -358,7 +358,7 @@ namespace Mabinogi_Damage_tracker
                     add_command.Parameters.AddWithValue("@healer", healer);
                     add_command.Parameters.AddWithValue("@heal", heal);
                     add_command.Parameters.AddWithValue("@rec", recipient);
-                    add_command.ExecuteNonQueryAsync();
+                    add_command.ExecuteNonQuery();
                 }
             }
             catch
@@ -404,7 +404,7 @@ namespace Mabinogi_Damage_tracker
                     add_command.Parameters.AddWithValue("@name", name);
                     add_command.Parameters.AddWithValue("@start_ut", start_ut);
                     add_command.Parameters.AddWithValue("@end_ut", end_ut);
-                    add_command.ExecuteNonQueryAsync();
+                    add_command.ExecuteNonQuery();
                 }
             }
             catch
@@ -425,7 +425,7 @@ namespace Mabinogi_Damage_tracker
                     WHERE recordings.id = @id
                     ", connection);
                     delete_command.Parameters.AddWithValue("@id", id);
-                    delete_command.ExecuteNonQueryAsync();
+                    delete_command.ExecuteNonQuery();
                 }
             }
             catch
@@ -448,7 +448,7 @@ namespace Mabinogi_Damage_tracker
                     ", connection);
                     add_command.Parameters.AddWithValue("@name", name);
                     add_command.Parameters.AddWithValue("@id", id);
-                    add_command.ExecuteNonQueryAsync();
+                    add_command.ExecuteNonQuery();
                 }
             }
             catch
@@ -1227,7 +1227,7 @@ namespace Mabinogi_Damage_tracker
                     SqliteCommand add_command = new SqliteCommand(@"
                     DELETE FROM damages
                     ", connection);
-                    add_command.ExecuteNonQueryAsync();
+                    add_command.ExecuteNonQuery();
                 }
             }
             catch
