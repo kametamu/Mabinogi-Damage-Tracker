@@ -11,6 +11,7 @@ using System;
 using System.Linq.Expressions;
 using System.Reflection.Metadata.Ecma335;
 using SQLitePCL;
+using Mabinogi_Damage_Tracker.NaoParseCompat;
 
 
 
@@ -372,8 +373,6 @@ namespace Mabinogi_Damage_tracker
 
         private static void pack_damage(TcpPacket tcp, int cursor, int sub_packet_length, int begining_of_packet_cursor)
         {
-            UInt32 _subsub_pack_len = 0;
-
             try
             {
 #if DEBUG_FILE
@@ -384,264 +383,232 @@ namespace Mabinogi_Damage_tracker
                 UInt64 sub_packet_id = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor));
                 cursor += sizeof(UInt64);
 
-                //we found a good opcode ok lets continue to parse the damage packet
-                //read the uvint64 
                 UInt64 throwaway_uvint64;
                 int variable_int_bytesread;
                 read_variable_length_uint64(tcp.PayloadData.AsSpan(cursor), out throwaway_uvint64, out variable_int_bytesread);
                 cursor += variable_int_bytesread;
 
-                //lets start parsing the sub sub packet
-                byte sub_item_count = tcp.PayloadData[cursor]; //when do we start eating the first byte?
+                byte sub_item_count = tcp.PayloadData[cursor];
                 cursor += sizeof(byte);
 
-                //check to make sure the next byte is 0 as it always should be
-                if (tcp.PayloadData[cursor] != 0) { cursor = (int)sub_packet_length + begining_of_packet_cursor; return; }
-                cursor++;
-
-                //now we read the header of the sub packet that contains data, all data chucnks have an extra byte at the begining to tell what type of data it is
-                //at the moment we just assume the packet is formed correctly.
-
-                cursor++;
-                UInt32 actionpack_id = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
-                cursor += sizeof(UInt32);
-
-
-                cursor++;
-                UInt32 prev_actionpack_id = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
-                cursor += sizeof(UInt32);
-
-
-                cursor++;
-                byte hit = tcp.PayloadData[cursor];
-                cursor += sizeof(byte);
-
-
-                cursor++;
-                byte ttype = tcp.PayloadData[cursor];
-                cursor += sizeof(byte);
-
-
-                cursor++;
-                byte unk1 = tcp.PayloadData[cursor];
-                cursor += sizeof(byte);
-
-
-                cursor++;
-                byte sub_header_flag = tcp.PayloadData[cursor];
-                cursor += sizeof(byte);
-
-                //check if the attack was blocked. if it is blocked there is more data at the moment we just skip these packets
-                if ((sub_header_flag & 0x1) != 0)
+                if (tcp.PayloadData[cursor] != 0)
                 {
-                    cursor++;
-                    cursor++;
-                    cursor++;
-                    cursor += sizeof(UInt32);
-                    cursor += sizeof(UInt32);
-                    cursor += sizeof(UInt64);
+                    return;
+                }
+                cursor++;
+
+                var reader = new OuterReader(tcp.PayloadData, cursor);
+
+                int actionpack_id = reader.GetInt();
+                int prev_actionpack_id = reader.GetInt();
+
+                byte hit = reader.GetByte();
+                if (hit == 0)
+                {
+                    return;
                 }
 
-                cursor++;
-                UInt32 subsub_packet_count = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
-                cursor += sizeof(UInt32);
+                byte maxhits = reader.GetByte();
+                reader.GetByte();
+                byte sub_header_flag = reader.GetByte();
 
-                UInt64 attacker_id = 0;
-                UInt64 enemy_id = 0;
-                SkillId skill = 0;
-                SkillId subskill = 0;
-                string throwawaypacket = "";
+                int subsub_packet_count = reader.GetInt();
 
-                //now we have to parse each sub packet
+                ushort lastSkillId = 0;
+                bool hasSkill = false;
+
                 for (int i = 0; i < subsub_packet_count; i++)
                 {
-                    int subsub_pack_start_cursor = cursor + 8;
-                    //get the subsub packet length
-                    cursor++;
-                    UInt32 subsub_pack_len = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor)); ;
-                    _subsub_pack_len = subsub_pack_len;
+                    int len = reader.GetInt();
 
-                    //we have to skip the header of the subsub packet
-                    cursor += 22;
-
-                    cursor++;
-
-                    UInt32 combatActionID = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
-                    cursor += sizeof(UInt32);
-
-                    cursor++;
-                    UInt64 entityID = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor)); //possibly player id
-                    cursor += sizeof(UInt64);
-
-                    cursor++;
-                    byte subsub_ttype = tcp.PayloadData[cursor];
-                    cursor += sizeof(byte);
-
-                    cursor++;
-                    UInt16 stun = BinaryPrimitives.ReadUInt16BigEndian(tcp.PayloadData.AsSpan(cursor));
-                    cursor += sizeof(UInt16);
-
-                    cursor++;
-                    UInt16 rawSkillId = BinaryPrimitives.ReadUInt16BigEndian(tcp.PayloadData.AsSpan(cursor));
-                    cursor += sizeof(UInt16);
-
-                    cursor++;
-                    UInt16 rawSubSkillId = BinaryPrimitives.ReadUInt16BigEndian(tcp.PayloadData.AsSpan(cursor));
-                    cursor += sizeof(UInt16);
-
-                    cursor++;
-                    UInt16 subsub_unk1 = BinaryPrimitives.ReadUInt16BigEndian(tcp.PayloadData.AsSpan(cursor));
-                    cursor += sizeof(UInt16);
-
-
-                    if ((subsub_ttype & 2) != 0)
+                    if (reader.Peek() != PacketElementType.Bin)
                     {
-                        attacker_id = entityID;
-
-                        skill = (SkillId)rawSkillId;
-                        subskill = (SkillId)rawSubSkillId;
-
-                        throwawaypacket = ("throw away packet: " + BitConverter.ToString(tcp.PayloadData, subsub_pack_start_cursor + 43, (int)subsub_pack_len));
-                        #region extrapacketinfo
-                        //cursor++;
-                        //cursor += sizeof(UInt64);
-
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-
-                        //cursor++;
-                        //cursor += sizeof(byte);
-
-                        //cursor++;
-                        //cursor += sizeof(byte);
-
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        #endregion
+                        reader.GetLong();
+                        subsub_packet_count = reader.GetInt();
+                        len = reader.GetInt();
                     }
 
-                    if ((subsub_ttype & 1) != 0)
+                    byte[] buff = reader.GetBin();
+                    var actionPacket = new Mabinogi_Damage_Tracker.NaoParseCompat.Packet(buff, 0);
+
+                    actionPacket.GetInt();
+                    long creatureEntityId = actionPacket.GetLong();
+                    byte type = actionPacket.GetByte();
+
+                    bool attackerAction = (len < 86 && type != 0);
+
+                    short stun = actionPacket.GetShort();
+                    ushort skillId = actionPacket.GetUShort();
+                    actionPacket.GetShort();
+                    if (actionPacket.Peek() == PacketElementType.Short)
                     {
-                        enemy_id = entityID;
-                        cursor++;
-                        UInt32 options = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
-                        cursor += sizeof(UInt32);
+                        actionPacket.GetShort();
+                    }
 
-                        cursor++;
-                        float damage = BinaryPrimitives.ReadSingleLittleEndian(tcp.PayloadData.AsSpan(cursor));
-                        cursor += sizeof(float);
-
-                        cursor++;
-                        float wound = BinaryPrimitives.ReadSingleLittleEndian(tcp.PayloadData.AsSpan(cursor));
-                        cursor += sizeof(float);
-
-                        cursor++;
-                        UInt32 manaDamage = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
-                        cursor += sizeof(UInt32);
-                        #region extra packet info
-                        ////unk1
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        ////unk2
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        ////xdist
-                        //cursor++;
-                        //cursor += sizeof(float);
-                        ////ydist
-                        //cursor++;
-                        //cursor += sizeof(float);
-                        #endregion
-
-                        //where were at
-                        if ((options & 33554432) != 0)
-                        {
-                            Debug.WriteLine("multiline found saving packet");
-                            //captureFileWriter.Write(raw);
-                            //multi hit unkown datatypes atm
-                            // hit count, unk2, unk3, unk4
-                        }
-                        #region extra packet info
-                        //// effect flags, delay, attacker id, unk3, attacker id
-                        //cursor++;
-                        //cursor += sizeof(float);
-                        //cursor++;
-                        //cursor += sizeof(float);
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        //cursor++;
-                        //cursor += sizeof(byte);
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-
-                        ////??
-                        //cursor++;
-                        //cursor += sizeof(UInt64);
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        //cursor++;
-                        //cursor += sizeof(UInt64);
-                        #endregion
-
-                        //check to make sure were only looking at player outgoing damage
-                        if (attacker_id < 0x0010000000000001 || attacker_id > 0x0010010000000001)
-                        { break; }
-
-                        int combatMasteryId = (int)SkillId.CombatMastery;
-                        ushort useSkill = rawSkillId;
-                        ushort useSubSkill = rawSubSkillId;
-
-                        if (Config.DebugSkillPackets && damage > 0)
-                        {
-                            LogsController.WriteLog(
-                                $"[SKILL DEBUG] rawSkill={rawSkillId} rawSubSkill={rawSubSkillId} " +
-                                $"attacker={attacker_id} enemy={enemy_id} damage={damage}"
-                            );
-                        }
-
-                        var normalizedSkill = SkillNormalization.Resolve(useSkill, useSubSkill);
-                        int effectiveSkillId = normalizedSkill.resolvedSkill;
+                    if (attackerAction)
+                    {
+                        lastSkillId = skillId;
+                        hasSkill = true;
 
                         if (Config.DebugSkillPackets)
                         {
-                            LogsController.WriteLog(
-                                $"[SKILL RESOLVE] rawSkill={useSkill} rawSubSkill={useSubSkill} resolved={effectiveSkillId}"
-                            );
+                            LogsController.WriteLog($"[SKILL DEBUG][ATTACKER] len={len} type=0x{type:X2} creature={creatureEntityId} skill={skillId}");
+                            if (Config.DebugSkillHex)
+                            {
+                                LogsController.WriteLog($"[SKILL HEX][ATTACKER] {BitConverter.ToString(buff)}");
+                            }
                         }
 
-                        if (effectiveSkillId == combatMasteryId &&
-                            useSubSkill != 0 &&
-                            SkillDictionary.IsKnownSkillId(useSubSkill) &&
-                            useSubSkill != combatMasteryId)
-                        {
-                            Debug.WriteLine("[SKILL RESOLUTION COLLAPSE] damage raw {0}:{1}, resolved {2}, reason {3}, attacker {4}",
-                                useSkill, useSubSkill, effectiveSkillId, normalizedSkill.reason, attacker_id);
-                        }
-
-                        skill = (SkillId)useSkill;
-                        subskill = (SkillId)useSubSkill;
-
-                        if (damage < 0 || damage > 100000000 || useSkill == 601 || useSkill == 512 || useSkill == 590) { break; }
-
-                        LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker_id, enemy_id, damage));
-                        Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, raw {6}:{7}, effective {8} ({9})", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill, effectiveSkillId, normalizedSkill.reason);
-                        db_helper.add_damage((Int64)attacker_id, damage, wound, (int)manaDamage, (Int64)enemy_id, effectiveSkillId, useSkill, useSubSkill);
+                        continue;
                     }
-                    cursor = subsub_pack_start_cursor + (int)subsub_pack_len;
+
+                    if (actionPacket.Peek() == PacketElementType.None)
+                    {
+                        continue;
+                    }
+
+                    if (actionPacket.NextIs(PacketElementType.Int))
+                    {
+                        actionPacket.GetInt();
+                    }
+
+                    int alignSteps = 0;
+                    while (actionPacket.Peek() != PacketElementType.Float &&
+                           actionPacket.Peek() != PacketElementType.None &&
+                           alignSteps < 32)
+                    {
+                        switch (actionPacket.Peek())
+                        {
+                            case PacketElementType.Byte:
+                                actionPacket.GetByte();
+                                break;
+                            case PacketElementType.Short:
+                                actionPacket.GetShort();
+                                break;
+                            case PacketElementType.Int:
+                                actionPacket.GetInt();
+                                break;
+                            case PacketElementType.Long:
+                                actionPacket.GetLong();
+                                break;
+                            default:
+                                alignSteps = 32;
+                                break;
+                        }
+                        alignSteps++;
+                    }
+
+                    if (!actionPacket.NextIs(PacketElementType.Float))
+                    {
+                        continue;
+                    }
+
+                    float damage = actionPacket.GetFloat();
+                    if (!actionPacket.NextIs(PacketElementType.Float))
+                    {
+                        continue;
+                    }
+                    float wound = actionPacket.GetFloat();
+                    if (!actionPacket.NextIs(PacketElementType.Int))
+                    {
+                        continue;
+                    }
+                    int manaDamage = actionPacket.GetInt();
+
+                    if (actionPacket.NextIs(PacketElementType.Int))
+                    {
+                        actionPacket.GetInt();
+                    }
+
+                    if (actionPacket.NextIs(PacketElementType.Float))
+                    {
+                        actionPacket.GetFloat();
+                    }
+                    if (actionPacket.NextIs(PacketElementType.Float))
+                    {
+                        actionPacket.GetFloat();
+                    }
+
+                    if (actionPacket.NextIs(PacketElementType.Float))
+                    {
+                        actionPacket.GetFloat();
+                        if (actionPacket.NextIs(PacketElementType.Float))
+                        {
+                            actionPacket.GetFloat();
+                        }
+                        if (actionPacket.NextIs(PacketElementType.Int))
+                        {
+                            actionPacket.GetInt();
+                        }
+                    }
+
+                    while (actionPacket.NextIs(PacketElementType.Int))
+                    {
+                        actionPacket.GetInt();
+                    }
+
+                    if (actionPacket.NextIs(PacketElementType.Byte))
+                    {
+                        actionPacket.GetByte();
+                    }
+                    if (actionPacket.NextIs(PacketElementType.Int))
+                    {
+                        actionPacket.GetInt();
+                    }
+
+                    if (!actionPacket.NextIs(PacketElementType.Long))
+                    {
+                        continue;
+                    }
+
+                    long attacker = actionPacket.GetLong();
+                    long enemy = creatureEntityId;
+
+                    ushort rawSkill = hasSkill ? lastSkillId : (ushort)0;
+                    ushort rawSubSkill = 0;
+
+                    if (!hasSkill && Config.DebugSkillPackets)
+                    {
+                        LogsController.WriteLog($"[SKILL DEBUG][TARGET] no attacker-skill yet. attacker={attacker} enemy={enemy} dmg={damage}");
+                    }
+
+                    if (damage < 0 || damage > 100000000)
+                    {
+                        continue;
+                    }
+
+                    if (rawSkill == 601 || rawSkill == 512 || rawSkill == 590)
+                    {
+                        continue;
+                    }
+
+                    if (attacker < 0x0010000000000001 || attacker > 0x0010010000000001)
+                    {
+                        continue;
+                    }
+
+                    var normalized = SkillNormalization.Resolve(rawSkill, rawSubSkill);
+                    int effectiveSkillId = normalized.resolvedSkill;
+
+                    if (Config.DebugSkillPackets)
+                    {
+                        LogsController.WriteLog($"[SKILL DEBUG][TARGET] attacker={attacker} enemy={enemy} dmg={damage:0.###} rawSkill={rawSkill} rawSub={rawSubSkill} resolved={effectiveSkillId} ({normalized.reason})");
+                        LogsController.WriteLog($"[SKILL RESOLVE] rawSkill={rawSkill} rawSubSkill={rawSubSkill} resolved={effectiveSkillId}");
+                        if (Config.DebugSkillHex)
+                        {
+                            LogsController.WriteLog($"[SKILL HEX][TARGET] {BitConverter.ToString(buff)}");
+                        }
+                    }
+
+                    LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker, enemy, damage));
+                    db_helper.add_damage(attacker, damage, wound, manaDamage, enemy, effectiveSkillId, rawSkill, rawSubSkill);
                 }
             }
-            catch (ArgumentOutOfRangeException)
+            catch (ArgumentOutOfRangeException ex)
             {
-                Debug.WriteLine("Cursor out of range, saving this packet and the next. cursor at {0}, packet length {1}, sub packet length {2}, sub sub packet length {3}", cursor, tcp.PayloadData.Length, sub_packet_length, _subsub_pack_len);
                 cursor = (int)sub_packet_length + begining_of_packet_cursor;
                 savenextpacket = true;
-                //captureFileWriter.Write(raw);
+                Debug.WriteLine("Cursor out of range while parsing combat packet: {0}", ex.ToString());
             }
             catch (Exception ex)
             {
