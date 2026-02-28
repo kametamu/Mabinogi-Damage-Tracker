@@ -91,6 +91,16 @@ The app is fully functional at this point in time.
 
 We monitor healing, general chat, and damage. Check the live page for a live log that you can determine if your getting data. If you see an error logged in the live page saying no adapter could be connected make sure you start the app with Mabinogi open and in the world with a character. You can manually set the correct adapter in the settings menu so next time the software is opened the scanning process can be skipped. If you open the server while Mabinogi is open the software will scan the ports and save it automatically. 
 
+### Optional skill packet debugging
+
+If you are troubleshooting skill resolution, you can enable additional parser log output:
+
+1. Open `Mabinogi_Damage_Tracker.Server/Config.cs`.
+2. Set `DebugSkillPackets` to `true`.
+3. Restart the server.
+
+When enabled, the parser writes extra entries to the Event Logs stream showing raw packet skill IDs and the resolved skill ID used for storage/analytics.
+
 
 ## We are an open source project and appreciate any contributions to the project!
 Currently the main missing feature set is redoubled offensive and star dust information not being read. We are also actively developing the user experience and adding front end features. Check back with the repo occasionally and see if any new updates are out.

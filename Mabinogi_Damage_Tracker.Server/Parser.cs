@@ -597,8 +597,23 @@ namespace Mabinogi_Damage_tracker
                         ushort useSkill = rawSkillId;
                         ushort useSubSkill = rawSubSkillId;
 
+                        if (Config.DebugSkillPackets && damage > 0)
+                        {
+                            LogsController.WriteLog(
+                                $"[SKILL DEBUG] rawSkill={rawSkillId} rawSubSkill={rawSubSkillId} " +
+                                $"attacker={attacker_id} enemy={enemy_id} damage={damage}"
+                            );
+                        }
+
                         var normalizedSkill = SkillNormalization.Resolve(useSkill, useSubSkill);
                         int effectiveSkillId = normalizedSkill.resolvedSkill;
+
+                        if (Config.DebugSkillPackets)
+                        {
+                            LogsController.WriteLog(
+                                $"[SKILL RESOLVE] rawSkill={useSkill} rawSubSkill={useSubSkill} resolved={effectiveSkillId}"
+                            );
+                        }
 
                         if (effectiveSkillId == combatMasteryId &&
                             useSubSkill != 0 &&
