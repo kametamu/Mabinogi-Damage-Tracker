@@ -616,8 +616,10 @@ namespace Mabinogi_Damage_tracker
                         skill = (SkillId)useSkill;
                         subskill = (SkillId)useSubSkill;
 
-                        if(damage < 0 || damage > 100000000 || rawSkillId == 601 || rawSkillId == 512 || rawSkillId == 590) { break; }
-                        if (effectiveSkillId < 10) { break; }
+                        if (damage < 0 || damage > 100000000 || useSkill == 601 || useSkill == 512 || useSkill == 590) { break; }
+
+                        // If attacker-info skill was unavailable, keep a light guard against obvious packet noise.
+                        if (!hasLastSkill && effectiveSkillId < 10) { break; }
 
                         LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker_id, enemy_id, damage));
                         Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, raw {6}:{7}, effective {8} ({9})", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill, effectiveSkillId, normalizedSkill.reason);
