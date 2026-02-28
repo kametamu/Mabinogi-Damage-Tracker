@@ -83,7 +83,7 @@ public class DataStreamController : ControllerBase
 
         var writer = Response.BodyWriter;
 
-        await foreach (var logMessage in _DoTstream.Reader.ReadAllAsync())
+        await foreach (var logMessage in _TotalDamagestream.Reader.ReadAllAsync())
         {
             var sseLine = $"data: {logMessage}\n\n";
             var bytes = Encoding.UTF8.GetBytes(sseLine);

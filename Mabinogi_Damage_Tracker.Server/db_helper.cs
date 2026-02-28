@@ -36,6 +36,10 @@ namespace Mabinogi_Damage_tracker
                     enemyid NUMERIC NOT NULL,
                     skill INT NOT NULL,
                     subskill INT NOT NULL,
+                    raw_skill INT,
+                    raw_subskill INT,
+                    resolved_skill INT,
+                    normalization_version INT,
                     dt TEXT NOT NULL,
                     ut INTEGER NOT NULL)";
 
@@ -258,9 +262,10 @@ namespace Mabinogi_Damage_tracker
                     add_command.ExecuteNonQueryAsync();
                 }
             }
-            catch 
+            catch (Exception ex)
             {
-                Debug.WriteLine("couldnt send sql command");
+                Debug.WriteLine($"add_damage failed: {ex}");
+                LogsController.WriteLog($"add_damage failed: {ex.Message}");
             }
         }
 
