@@ -667,7 +667,10 @@ namespace Mabinogi_Damage_tracker
                     using (SqliteCommand command = new SqliteCommand(@"
                         SELECT d.playerid,
                                COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
-                               COALESCE(d.resolved_skill, d.skill) AS skillId,
+                               COALESCE(d.resolved_skill,
+                                        NULLIF(d.raw_subskill, 0),
+                                        NULLIF(d.subskill, 0),
+                                        NULLIF(d.skill, 0)) AS skillId,
                                d.subskill AS subSkillId,
                                SUM(d.damage) AS totalDamage,
                                COUNT(*) AS hitCount
@@ -675,7 +678,12 @@ namespace Mabinogi_Damage_tracker
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
                           AND d.skill IS NOT NULL
-                        GROUP BY d.playerid, COALESCE(d.resolved_skill, d.skill), d.subskill
+                        GROUP BY d.playerid,
+                                 COALESCE(d.resolved_skill,
+                                          NULLIF(d.raw_subskill, 0),
+                                          NULLIF(d.subskill, 0),
+                                          NULLIF(d.skill, 0)),
+                                 d.subskill
                         ORDER BY totalDamage DESC;
                     ", connection))
                     {
@@ -722,7 +730,10 @@ namespace Mabinogi_Damage_tracker
                     using (SqliteCommand command = new SqliteCommand(@"
                         SELECT d.playerid,
                                COALESCE(p.playername, CAST(d.playerid AS TEXT)) AS playername,
-                               COALESCE(d.resolved_skill, d.skill) AS skillId,
+                               COALESCE(d.resolved_skill,
+                                        NULLIF(d.raw_subskill, 0),
+                                        NULLIF(d.subskill, 0),
+                                        NULLIF(d.skill, 0)) AS skillId,
                                d.subskill AS subSkillId,
                                SUM(d.damage) AS totalDamage,
                                COUNT(*) AS hitCount
@@ -730,7 +741,12 @@ namespace Mabinogi_Damage_tracker
                         LEFT JOIN players p ON p.playerid = d.playerid
                         WHERE d.ut BETWEEN @start_ut AND @end_ut
                           AND d.skill IS NOT NULL
-                        GROUP BY d.playerid, COALESCE(d.resolved_skill, d.skill), d.subskill
+                        GROUP BY d.playerid,
+                                 COALESCE(d.resolved_skill,
+                                          NULLIF(d.raw_subskill, 0),
+                                          NULLIF(d.subskill, 0),
+                                          NULLIF(d.skill, 0)),
+                                 d.subskill
                         ORDER BY totalDamage DESC;
                     ", connection))
                     {
@@ -769,7 +785,7 @@ namespace Mabinogi_Damage_tracker
         public static List<object> Get_UnknownSkillStats(int start_ut, int end_ut, int top = 20, int minCount = 1)
         {
             var queryResults = new List<object>();
-            var grouped = new List<(int skillId, int count)>();
+            var grouped = new List<(int skillId, int count, int specificRawSubSkillHits)>();
             int sqlLimit = Math.Max(top * 10, 200);
 
             try
@@ -778,17 +794,30 @@ namespace Mabinogi_Damage_tracker
                 {
                     connection.Open();
                     using (SqliteCommand command = new SqliteCommand(@"
-                        SELECT COALESCE(resolved_skill, skill) AS skillId,
+                        SELECT COALESCE(resolved_skill,
+                                        NULLIF(raw_subskill, 0),
+                                        NULLIF(subskill, 0),
+                                        NULLIF(skill, 0)) AS skillId,
+                               SUM(CASE
+                                       WHEN COALESCE(raw_subskill, subskill, 0) BETWEEN 20000 AND 50000
+                                            AND COALESCE(raw_subskill, subskill, 0) != @combatMastery
+                                       THEN 1
+                                       ELSE 0
+                                   END) AS specificRawSubSkillHits,
                                COUNT(*) AS hitCount
                         FROM damages
                         WHERE ut BETWEEN @start_ut AND @end_ut
-                        GROUP BY COALESCE(resolved_skill, skill)
+                        GROUP BY COALESCE(resolved_skill,
+                                          NULLIF(raw_subskill, 0),
+                                          NULLIF(subskill, 0),
+                                          NULLIF(skill, 0))
                         ORDER BY hitCount DESC
                         LIMIT @limit;
                     ", connection))
                     {
                         command.Parameters.AddWithValue("@start_ut", start_ut);
                         command.Parameters.AddWithValue("@end_ut", end_ut);
+                        command.Parameters.AddWithValue("@combatMastery", (int)SkillId.CombatMastery);
                         command.Parameters.AddWithValue("@limit", sqlLimit);
 
                         using (SqliteDataReader reader = command.ExecuteReader())
@@ -797,7 +826,8 @@ namespace Mabinogi_Damage_tracker
                             {
                                 grouped.Add((
                                     reader.GetInt32(reader.GetOrdinal("skillId")),
-                                    reader.GetInt32(reader.GetOrdinal("hitCount"))
+                                    reader.GetInt32(reader.GetOrdinal("hitCount")),
+                                    reader.GetInt32(reader.GetOrdinal("specificRawSubSkillHits"))
                                 ));
                             }
                         }
@@ -812,7 +842,15 @@ namespace Mabinogi_Damage_tracker
             foreach (var row in grouped)
             {
                 if (row.count < minCount) { continue; }
-                if (SkillDictionary.IsKnownSkillId(row.skillId)) { continue; }
+                if (SkillDictionary.IsKnownSkillId(row.skillId) && row.skillId != 0 && row.skillId != (int)SkillId.CombatMastery)
+                {
+                    continue;
+                }
+
+                if (row.skillId == (int)SkillId.CombatMastery && row.specificRawSubSkillHits == 0)
+                {
+                    continue;
+                }
 
                 queryResults.Add(new
                 {

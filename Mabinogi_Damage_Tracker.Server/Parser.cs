@@ -607,6 +607,11 @@ namespace Mabinogi_Damage_tracker
                         var attackerNormalized = SkillNormalization.Resolve(aSkill, aSubSkill);
                         var damageNormalized = SkillNormalization.Resolve(dSkill, dSubSkill);
 
+                        int combatMasteryId = (int)SkillId.CombatMastery;
+
+                        bool IsSpecificSkill(int id) => id != 0 && id != combatMasteryId;
+                        bool IsPlausibleRangeSkill(int id) => id >= 20000 && id <= 50000;
+
                         bool attackerHasValue = hasLastSkill && !(aSkill == 0 && aSubSkill == 0);
                         bool attackerKnown = attackerHasValue && attackerNormalized.resolvedSkill != 0 && SkillDictionary.IsKnownSkillId(attackerNormalized.resolvedSkill);
                         bool damageKnown = damageNormalized.resolvedSkill != 0 && SkillDictionary.IsKnownSkillId(damageNormalized.resolvedSkill);
@@ -614,7 +619,6 @@ namespace Mabinogi_Damage_tracker
                         // NOTE:
                         // rawSkillId/rawSubSkillId from the damage block are often unreliable.
                         // Prefer attacker-info (ttype & 2) only when it resolves to a known skill.
-                        int combatMasteryId = (int)SkillId.CombatMastery;
                         bool useAttackerCandidate;
                         if (attackerKnown && !damageKnown)
                         {
@@ -626,10 +630,29 @@ namespace Mabinogi_Damage_tracker
                         }
                         else if (attackerKnown && damageKnown)
                         {
+                            bool damageSpecific = IsSpecificSkill(damageNormalized.resolvedSkill);
+
                             if (attackerNormalized.resolvedSkill == combatMasteryId &&
-                                damageNormalized.resolvedSkill != combatMasteryId)
+                                damageSpecific)
                             {
                                 useAttackerCandidate = false;
+                            }
+                            else if (attackerNormalized.resolvedSkill == combatMasteryId &&
+                                     damageNormalized.resolvedSkill == combatMasteryId)
+                            {
+                                bool attackerSubSpecific = IsSpecificSkill(aSubSkill) &&
+                                                          (SkillDictionary.IsKnownSkillId(aSubSkill) || IsPlausibleRangeSkill(aSubSkill));
+                                bool damageSubSpecific = IsSpecificSkill(dSubSkill) &&
+                                                        (SkillDictionary.IsKnownSkillId(dSubSkill) || IsPlausibleRangeSkill(dSubSkill));
+
+                                if (damageSubSpecific && !attackerSubSpecific)
+                                {
+                                    useAttackerCandidate = false;
+                                }
+                                else
+                                {
+                                    useAttackerCandidate = true;
+                                }
                             }
                             else
                             {
@@ -647,9 +670,20 @@ namespace Mabinogi_Damage_tracker
                         bool chosenKnown = useAttackerCandidate ? attackerKnown : damageKnown;
                         int effectiveSkillId = normalizedSkill.resolvedSkill;
 
+                        bool collapseToCombatMastery =
+                            effectiveSkillId == combatMasteryId &&
+                            ((SkillDictionary.IsKnownSkillId(useSubSkill) && IsSpecificSkill(useSubSkill)) ||
+                             (IsPlausibleRangeSkill(useSubSkill) && IsSpecificSkill(useSubSkill)));
+
                         if (!attackerKnown && !damageKnown)
                         {
                             Debug.WriteLine("[SKILL RESOLUTION UNKNOWN] attacker {0}:{1}, damage {2}:{3}, chosen {4}:{5}, resolved {6}", aSkill, aSubSkill, dSkill, dSubSkill, useSkill, useSubSkill, effectiveSkillId);
+                        }
+
+                        if (collapseToCombatMastery)
+                        {
+                            Debug.WriteLine("[SKILL RESOLUTION COLLAPSE] attacker {0}:{1}, damage {2}:{3}, chosen {4}:{5}, resolved {6}, reason {7}, attackerNorm {8}, damageNorm {9}",
+                                aSkill, aSubSkill, dSkill, dSubSkill, useSkill, useSubSkill, effectiveSkillId, normalizedSkill.reason, attackerNormalized.resolvedSkill, damageNormalized.resolvedSkill);
                         }
 
                         skill = (SkillId)useSkill;
