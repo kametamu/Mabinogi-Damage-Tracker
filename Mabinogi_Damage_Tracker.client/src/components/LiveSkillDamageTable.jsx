@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { DataGrid } from '@mui/x-data-grid';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
+import Table from '@mui/material/Table';
+import TableBody from '@mui/material/TableBody';
+import TableCell from '@mui/material/TableCell';
+import TableContainer from '@mui/material/TableContainer';
+import TableHead from '@mui/material/TableHead';
+import TableRow from '@mui/material/TableRow';
 import { localizeSkillName } from '../localization/skills';
-
-const paginationModel = { page: 0, pageSize: 5 };
 
 export default function LiveSkillDamageTable({ startUT, recording }) {
   const { t, i18n } = useTranslation();
@@ -40,45 +43,39 @@ export default function LiveSkillDamageTable({ startUT, recording }) {
     return () => clearInterval(interval);
   }, [recording, startUT]);
 
-  const columns = useMemo(() => [
-    {
-      field: 'skillId',
-      headerName: t('analytics.skill'),
-      minWidth: 180,
-      flex: 1,
-      renderCell: (params) => localizeSkillName(params.row.skillId, null, i18n.language),
-    },
-    {
-      field: 'playerName',
-      headerName: t('analytics.player'),
-      minWidth: 130,
-      flex: 1,
-    },
-    {
-      field: 'totalDamage',
-      headerName: t('analytics.totalDamage'),
-      minWidth: 130,
-      type: 'number',
-      flex: 1,
-      valueFormatter: (value) => Number(value || 0).toLocaleString(),
-    },
-  ], [i18n.language, t]);
+  const visibleRows = useMemo(
+    () => rows.slice(0, 10),
+    [rows],
+  );
 
   return (
     <Paper square={false} sx={{ p: 2, height: '100%' }}>
       <Typography variant="h4" sx={{ mb: 2 }}>{t('analytics.liveSkillDamage')}</Typography>
-      <DataGrid
-        rows={rows}
-        columns={columns}
-        pageSizeOptions={[5, 10, 20]}
-        initialState={{
-          pagination: { paginationModel },
-          sorting: { sortModel: [{ field: 'totalDamage', sort: 'desc' }] },
-        }}
-        disableRowSelectionOnClick
-        sx={{ border: 0, minHeight: 260 }}
-        localeText={{ noRowsLabel: t('analytics.noRows') }}
-      />
+      <TableContainer>
+        <Table size="small" aria-label="live skill damage table">
+          <TableHead>
+            <TableRow>
+              <TableCell>{t('analytics.skill')}</TableCell>
+              <TableCell>{t('analytics.player')}</TableCell>
+              <TableCell align="right">{t('analytics.totalDamage')}</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {visibleRows.map((row) => (
+              <TableRow key={row.id}>
+                <TableCell>{localizeSkillName(row.skillId, null, i18n.language)}</TableCell>
+                <TableCell>{row.playerName}</TableCell>
+                <TableCell align="right">{Number(row.totalDamage || 0).toLocaleString()}</TableCell>
+              </TableRow>
+            ))}
+            {visibleRows.length === 0 && (
+              <TableRow>
+                <TableCell colSpan={3} align="center">{t('analytics.noRows')}</TableCell>
+              </TableRow>
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
     </Paper>
   );
 }
