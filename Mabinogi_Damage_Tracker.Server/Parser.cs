@@ -450,9 +450,6 @@ namespace Mabinogi_Damage_tracker
                 UInt64 enemy_id = 0;
                 SkillId skill = 0;
                 SkillId subskill = 0;
-                ushort lastRawSkillId = 0;
-                ushort lastRawSubSkillId = 0;
-                bool hasLastSkill = false;
                 string throwawaypacket = "";
 
                 //now we have to parse each sub packet
@@ -500,9 +497,6 @@ namespace Mabinogi_Damage_tracker
                     if ((subsub_ttype & 2) != 0)
                     {
                         attacker_id = entityID;
-                        lastRawSkillId = rawSkillId;
-                        lastRawSubSkillId = rawSubSkillId;
-                        hasLastSkill = true;
 
                         skill = (SkillId)rawSkillId;
                         subskill = (SkillId)rawSubSkillId;
@@ -599,100 +593,26 @@ namespace Mabinogi_Damage_tracker
                         if (attacker_id < 0x0010000000000001 || attacker_id > 0x0010010000000001)
                         { break; }
 
-                        ushort aSkill = lastRawSkillId;
-                        ushort aSubSkill = lastRawSubSkillId;
-                        ushort dSkill = rawSkillId;
-                        ushort dSubSkill = rawSubSkillId;
-
-                        var attackerNormalized = SkillNormalization.Resolve(aSkill, aSubSkill);
-                        var damageNormalized = SkillNormalization.Resolve(dSkill, dSubSkill);
-
                         int combatMasteryId = (int)SkillId.CombatMastery;
+                        ushort useSkill = rawSkillId;
+                        ushort useSubSkill = rawSubSkillId;
 
-                        bool IsSpecificSkill(int id) => id != 0 && id != combatMasteryId;
-                        bool IsPlausibleRangeSkill(int id) => id >= 20000 && id <= 50000;
-
-                        bool attackerHasValue = hasLastSkill && !(aSkill == 0 && aSubSkill == 0);
-                        bool attackerKnown = attackerHasValue && attackerNormalized.resolvedSkill != 0 && SkillDictionary.IsKnownSkillId(attackerNormalized.resolvedSkill);
-                        bool damageKnown = damageNormalized.resolvedSkill != 0 && SkillDictionary.IsKnownSkillId(damageNormalized.resolvedSkill);
-
-                        // NOTE:
-                        // rawSkillId/rawSubSkillId from the damage block are often unreliable.
-                        // Prefer attacker-info (ttype & 2) only when it resolves to a known skill.
-                        bool useAttackerCandidate;
-                        if (attackerKnown && !damageKnown)
-                        {
-                            useAttackerCandidate = true;
-                        }
-                        else if (!attackerKnown && damageKnown)
-                        {
-                            useAttackerCandidate = false;
-                        }
-                        else if (attackerKnown && damageKnown)
-                        {
-                            bool damageSpecific = IsSpecificSkill(damageNormalized.resolvedSkill);
-
-                            if (attackerNormalized.resolvedSkill == combatMasteryId &&
-                                damageSpecific)
-                            {
-                                useAttackerCandidate = false;
-                            }
-                            else if (attackerNormalized.resolvedSkill == combatMasteryId &&
-                                     damageNormalized.resolvedSkill == combatMasteryId)
-                            {
-                                bool attackerSubSpecific = IsSpecificSkill(aSubSkill) &&
-                                                          (SkillDictionary.IsKnownSkillId(aSubSkill) || IsPlausibleRangeSkill(aSubSkill));
-                                bool damageSubSpecific = IsSpecificSkill(dSubSkill) &&
-                                                        (SkillDictionary.IsKnownSkillId(dSubSkill) || IsPlausibleRangeSkill(dSubSkill));
-
-                                if (damageSubSpecific && !attackerSubSpecific)
-                                {
-                                    useAttackerCandidate = false;
-                                }
-                                else
-                                {
-                                    useAttackerCandidate = true;
-                                }
-                            }
-                            else
-                            {
-                                useAttackerCandidate = true;
-                            }
-                        }
-                        else
-                        {
-                            useAttackerCandidate = false;
-                        }
-
-                        ushort useSkill = useAttackerCandidate ? aSkill : dSkill;
-                        ushort useSubSkill = useAttackerCandidate ? aSubSkill : dSubSkill;
-                        var normalizedSkill = useAttackerCandidate ? attackerNormalized : damageNormalized;
-                        bool chosenKnown = useAttackerCandidate ? attackerKnown : damageKnown;
+                        var normalizedSkill = SkillNormalization.Resolve(useSkill, useSubSkill);
                         int effectiveSkillId = normalizedSkill.resolvedSkill;
 
-                        bool collapseToCombatMastery =
-                            effectiveSkillId == combatMasteryId &&
-                            ((SkillDictionary.IsKnownSkillId(useSubSkill) && IsSpecificSkill(useSubSkill)) ||
-                             (IsPlausibleRangeSkill(useSubSkill) && IsSpecificSkill(useSubSkill)));
-
-                        if (!attackerKnown && !damageKnown)
+                        if (effectiveSkillId == combatMasteryId &&
+                            useSubSkill != 0 &&
+                            SkillDictionary.IsKnownSkillId(useSubSkill) &&
+                            useSubSkill != combatMasteryId)
                         {
-                            Debug.WriteLine("[SKILL RESOLUTION UNKNOWN] attacker {0}:{1}, damage {2}:{3}, chosen {4}:{5}, resolved {6}", aSkill, aSubSkill, dSkill, dSubSkill, useSkill, useSubSkill, effectiveSkillId);
-                        }
-
-                        if (collapseToCombatMastery)
-                        {
-                            Debug.WriteLine("[SKILL RESOLUTION COLLAPSE] attacker {0}:{1}, damage {2}:{3}, chosen {4}:{5}, resolved {6}, reason {7}, attackerNorm {8}, damageNorm {9}",
-                                aSkill, aSubSkill, dSkill, dSubSkill, useSkill, useSubSkill, effectiveSkillId, normalizedSkill.reason, attackerNormalized.resolvedSkill, damageNormalized.resolvedSkill);
+                            Debug.WriteLine("[SKILL RESOLUTION COLLAPSE] damage raw {0}:{1}, resolved {2}, reason {3}, attacker {4}",
+                                useSkill, useSubSkill, effectiveSkillId, normalizedSkill.reason, attacker_id);
                         }
 
                         skill = (SkillId)useSkill;
                         subskill = (SkillId)useSubSkill;
 
                         if (damage < 0 || damage > 100000000 || useSkill == 601 || useSkill == 512 || useSkill == 590) { break; }
-
-                        // Only guard low skill ids on fallback/unknown paths to avoid dropping valid known skills.
-                        if ((!chosenKnown || !hasLastSkill) && effectiveSkillId < 10) { break; }
 
                         LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker_id, enemy_id, damage));
                         Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, raw {6}:{7}, effective {8} ({9})", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill, effectiveSkillId, normalizedSkill.reason);

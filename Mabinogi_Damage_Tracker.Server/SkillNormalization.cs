@@ -19,11 +19,6 @@ namespace Mabinogi_Damage_Tracker
                 return (rawSkill, "skill-known");
             }
 
-            if (rawSubSkill >= 20000 && rawSubSkill <= 50000 && rawSubSkill != CombatMasteryId)
-            {
-                return (rawSubSkill, "subskill-range-fallback");
-            }
-
             return (rawSkill, "fallback-rawSkill");
         }
     }
