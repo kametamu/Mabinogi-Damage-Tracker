@@ -213,7 +213,6 @@ namespace Mabinogi_Damage_tracker
 
                     using (SqliteDataReader reader = command.ExecuteReader())
                     {
-                        if (reader.HasRows == false) { return null; }
                         var query_results = new List<object>();
                         while (reader.Read())
                         {
@@ -233,9 +232,11 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_All_Players: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<object>();
             }
         }
 
@@ -302,7 +303,6 @@ namespace Mabinogi_Damage_tracker
 
                     using (SqliteDataReader reader = command.ExecuteReader())
                     {
-                        if (reader.HasRows == false) { return null; }
                         while (reader.Read())
                         {
                             long playerId = reader.GetInt64(reader.GetOrdinal("playerid"));
@@ -315,9 +315,11 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_ListOf_Distinct_Largest_Single_Damage_Instance: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<Damage_Simple>();
             }
             return query_results;
            
@@ -473,7 +475,6 @@ namespace Mabinogi_Damage_tracker
                     ", connection);
                     using (SqliteDataReader reader = command.ExecuteReader())
                     {
-                        if (reader.HasRows == false) { return null; }
                         while (reader.Read())
                         {
                             string name = "";
@@ -490,9 +491,11 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_TotalDamage_ByPlayers: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<Models.Damage_Simple>();
             }
             return query_results;
         }
@@ -519,8 +522,7 @@ namespace Mabinogi_Damage_tracker
 
                         using (SqliteDataReader reader = command.ExecuteReader())
                         {
-                            if (reader.HasRows == false) { return null; }
-
+    
                             while (reader.Read())
                             {
                                 long playerId = reader.GetInt64(reader.GetOrdinal("playerid"));
@@ -538,9 +540,11 @@ namespace Mabinogi_Damage_tracker
 
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_Damages_Between_Ut: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<Models.Damage_Simple>();
             }
 
         }
@@ -569,12 +573,11 @@ namespace Mabinogi_Damage_tracker
 
                         long firstUt = -1;
                         long lastUt = -1;
-                        long last_id = 0;
+                        long last_id = lastFetchedId;
 
                         using (SqliteDataReader reader = command.ExecuteReader())
                         {
-                            if (reader.HasRows == false) { return null; }
-
+    
                             while (reader.Read())
                             {
                                 last_id = reader.GetInt64(reader.GetOrdinal("id"));
@@ -649,9 +652,11 @@ namespace Mabinogi_Damage_tracker
 
                 }
             }
-            catch (Exception)
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_AllDamages_GroupedByPlayers_AfterId: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new { lastId = (long)lastFetchedId, data = new List<object>() };
             }
         }
 
@@ -711,8 +716,10 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                LogsController.WriteLog($"[DB ERROR] Get_SkillDamage_ByPlayer_AndSkill: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
                 return new List<Models.SkillDamageRow>();
             }
 
@@ -774,8 +781,10 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                LogsController.WriteLog($"[DB ERROR] Get_SkillDamage_Ranking: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
                 return new List<Models.SkillDamageRow>();
             }
 
@@ -834,8 +843,10 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
+                LogsController.WriteLog($"[DB ERROR] Get_UnknownSkillStats: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
                 return queryResults;
             }
 
@@ -921,8 +932,7 @@ namespace Mabinogi_Damage_tracker
 
                         using (SqliteDataReader reader = command.ExecuteReader())
                         {
-                            if (reader.HasRows == false) { return null; }
-                            while (reader.Read())
+                                while (reader.Read())
                             {
                                 long playerId = reader.GetInt64(reader.GetOrdinal("playerid"));
                                 string playerName = reader.IsDBNull(reader.GetOrdinal("playername")) ? $"{playerId}" : reader.GetString(reader.GetOrdinal("playername"));
@@ -979,9 +989,11 @@ namespace Mabinogi_Damage_tracker
 
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_AllDamages_GroupedByPlayers_BetweenUT: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<object>();
             }
         }
 
@@ -1072,9 +1084,11 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_AggregatedDamage_GroupedByPlayers_BetweenUT: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<object>();
             }
         }
 
@@ -1093,7 +1107,6 @@ namespace Mabinogi_Damage_tracker
                     ", connection);
                     using (SqliteDataReader reader = command.ExecuteReader())
                     {
-                        if (reader.HasRows == false) { return null; }
                         while (reader.Read())
                         {
                             query_results.Add(new Models.Recording_Simple(reader.GetInt16(0), reader.GetString(1), reader.GetInt32(2), reader.GetInt32(3)));
@@ -1101,9 +1114,11 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_Recordings: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<Models.Recording_Simple>();
             }
             return query_results;
         }
@@ -1166,8 +1181,7 @@ namespace Mabinogi_Damage_tracker
                         Damage_Simple results;
                         using (SqliteDataReader reader = command.ExecuteReader())
                         {
-                            if (reader.HasRows == false) { return null; }
-                            while (reader.Read())
+                                while (reader.Read())
                             {
                                 results = new Damage_Simple(reader.GetDouble(0), reader.GetInt64(3), reader.GetString(1), reader.GetInt32(2));
                                 damages.Add(results);
@@ -1177,9 +1191,11 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_ListOf_Distinct_Biggest_BurstofDamage_InUT_BetweenTimes: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<Damage_Simple>();
             }
         }
 
@@ -1214,9 +1230,11 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_Chunked_Damage_OverUT: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<Damage_Simple>();
             }
         }
 
@@ -1249,9 +1267,11 @@ namespace Mabinogi_Damage_tracker
                     }
                 }
             }
-            catch
+            catch (Exception ex)
             {
-                return null;
+                LogsController.WriteLog($"[DB ERROR] Get_Players_From_Recording: {ex.Message}");
+                Debug.WriteLine(ex.ToString());
+                return new List<string>();
             }
         }
 

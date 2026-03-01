@@ -28,15 +28,13 @@ namespace Mabinogi_Damage_tracker.Controllers
         public IActionResult GetTotalPlayerDamage()
         {
             List<Damage_Simple> damages = db_helper.Get_TotalDamage_ByPlayers();
-            if (damages == null) { return NotFound(); }
-            return Ok(Json(damages));
+            return Json(damages ?? new List<Damage_Simple>());
         }
 
         public IActionResult GetRecordings()
         {
             List<Recording_Simple> recordings = db_helper.Get_Recordings();
-            if (recordings == null) { return NotFound(); }
-            return Ok(Json(recordings));
+            return Json(recordings ?? new List<Recording_Simple>());
         }
 
         public IActionResult DeleteRecordings([FromBody] int[] ids)
@@ -64,8 +62,7 @@ namespace Mabinogi_Damage_tracker.Controllers
         public IActionResult GetAllPlayers()
         {
             List<object> players = db_helper.Get_All_Players();
-            if (players == null) { return NotFound(); }
-            return Ok(Json(players));
+            return Json(players ?? new List<object>());
         }
 
         public JsonResult GetDamagesBetweenUt(int start_ut, int end_ut)

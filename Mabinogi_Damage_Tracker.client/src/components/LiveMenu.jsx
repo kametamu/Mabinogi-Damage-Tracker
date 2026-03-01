@@ -55,12 +55,16 @@ export default function LiveMenu() {
     async function GetNewDamageData(lastId) {
         
         await fetch(`http://${window.location.hostname}:5004/Home/GetAllDamagesGroupedByPlayersAfterId?lastFetchedId=${lastId}`)
-            .then(response => response.json())
+            .then(response => (response.ok ? response.json() : null))
             .then(res => {
-                if (!res) return null
+                if (!res || !Array.isArray(res.data)) {
+                    return null;
+                }
 
-                lastFetchedIdRef.current = res.lastId
-                const data = res.data
+                if (typeof res.lastId === 'number') {
+                    lastFetchedIdRef.current = res.lastId;
+                }
+                const data = res.data;
                 // ---
                 // Damage Pie Chart
                 // ---
@@ -225,9 +229,11 @@ export default function LiveMenu() {
 
         
         await fetch(`http://${window.location.hostname}:5004/Home/GetLastDamageRowId`)
-            .then(response => response.json())
+            .then(response => (response.ok ? response.json() : null))
             .then(res => {
-                lastFetchedIdRef.current = res.data;
+                if (typeof res?.data === 'number') {
+                    lastFetchedIdRef.current = res.data;
+                }
             })
             .catch(error => console.error('Error:', error));
 

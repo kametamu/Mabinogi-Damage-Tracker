@@ -161,12 +161,20 @@ export default function RecordingsMenu() {
     useEffect(() => {
         // Call Backend API to fetch recordings below:
         fetch(`http://${window.location.hostname}:5004/Home/GetRecordings`)
-            .then(response => response.json())
+            .then(response => (response.ok ? response.json() : []))
             .then(data => {
-                const newRows = transformRowData(data.value)
-                setRows(newRows)
+                const recordings = Array.isArray(data)
+                    ? data
+                    : Array.isArray(data?.value)
+                        ? data.value
+                        : [];
+                const newRows = transformRowData(recordings);
+                setRows(newRows);
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                setRows([]);
+            });
     }, [])
 
     return (

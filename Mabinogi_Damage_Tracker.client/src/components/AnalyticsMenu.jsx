@@ -44,6 +44,21 @@ function transformDataLineChartDamage(apiData) {
     }));
 }
 
+
+async function fetchJsonOrDefault(url, fallback) {
+    try {
+        const response = await fetch(url);
+        if (!response.ok) {
+            return fallback;
+        }
+        const data = await response.json();
+        return data ?? fallback;
+    } catch (error) {
+        console.error('Error:', error);
+        return fallback;
+    }
+}
+
 export default function AnalyticsMenu({ start_ut, end_ut }) {
     const { t } = useTranslation();
     const { burstCount, largestDamageInstanceCount } = useContext(AppContext)
@@ -65,118 +80,102 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
         // GetDamangeBands()
         async function getDamageBands() {
-            const newBands = []
-            const newGraphBands = []
-            await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${60}&count=${burstCount}`)
-                .then(response => response.json())
-                .then(data => {
-                    const bands = data.map((res) => {
-                        const band = {
-                            label: '60s',
-                            start: formatTimeStamp(res.unix_timestamp),
-                            end: formatTimeStamp(res.unix_timestamp + 60),
-                            ...res,
-                        }
-                        return band
-                    })
-                    newGraphBands.push(bands[0])
-                    newBands.push(bands)
-                })
+            const newBands = [];
+            const newGraphBands = [];
 
-            await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${30}&count=${burstCount}`)
-                .then(response => response.json())
-                .then(data => {
-                    const bands = data.map((res) => {
-                        const band = {
-                            label: '30s',
-                            start: formatTimeStamp(res.unix_timestamp),
-                            end: formatTimeStamp(res.unix_timestamp + 60),
-                            ...res,
-                        }
-                        return band
-                    })
-                    newGraphBands.push(bands[0])
-                    newBands.push(bands)
-                })
+            const bands60 = await fetchJsonOrDefault(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${60}&count=${burstCount}`, []);
+            const normalized60 = Array.isArray(bands60) ? bands60 : [];
+            const mapped60 = normalized60.map((res) => ({
+                label: '60s',
+                start: formatTimeStamp(res.unix_timestamp),
+                end: formatTimeStamp(res.unix_timestamp + 60),
+                ...res,
+            }));
+            if (mapped60.length > 0) {
+                newGraphBands.push(mapped60[0]);
+            }
+            newBands.push(mapped60);
 
-            await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${15}&count=${burstCount}`)
-                .then(response => response.json())
-                .then(data => {
-                    const bands = data.map((res) => {
-                        const band = {
-                            label: '15s',
-                            start: formatTimeStamp(res.unix_timestamp),
-                            end: formatTimeStamp(res.unix_timestamp + 60),
-                            ...res,
-                        }
-                        return band
-                    })
-                    newGraphBands.push(bands[0])
-                    newBands.push(bands)
-                })
-            setGraphBands(newGraphBands)
-            setBands(newBands)
+            const bands30 = await fetchJsonOrDefault(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${30}&count=${burstCount}`, []);
+            const normalized30 = Array.isArray(bands30) ? bands30 : [];
+            const mapped30 = normalized30.map((res) => ({
+                label: '30s',
+                start: formatTimeStamp(res.unix_timestamp),
+                end: formatTimeStamp(res.unix_timestamp + 60),
+                ...res,
+            }));
+            if (mapped30.length > 0) {
+                newGraphBands.push(mapped30[0]);
+            }
+            newBands.push(mapped30);
+
+            const bands15 = await fetchJsonOrDefault(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${15}&count=${burstCount}`, []);
+            const normalized15 = Array.isArray(bands15) ? bands15 : [];
+            const mapped15 = normalized15.map((res) => ({
+                label: '15s',
+                start: formatTimeStamp(res.unix_timestamp),
+                end: formatTimeStamp(res.unix_timestamp + 60),
+                ...res,
+            }));
+            if (mapped15.length > 0) {
+                newGraphBands.push(mapped15[0]);
+            }
+            newBands.push(mapped15);
+
+            setGraphBands(newGraphBands);
+            setBands(newBands);
         }
         // End of GetDamangeBands()
 
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetAggregatedDamageSeriesGroupedByPlayers?start_ut=${start_ut}&end_ut=${end_ut}`)
-            .then(response => response.json())
+        fetchJsonOrDefault(`http://${window.location.hostname}:5004/Home/GetAggregatedDamageSeriesGroupedByPlayers?start_ut=${start_ut}&end_ut=${end_ut}`, [])
             .then(data => {
-                const sortedData = data.sort((a, b) => {
-                    const damageA = a.data.at(-1)
-                    const damageB = b.data.at(-1)
-
-                    if (damageA > damageB) {
-                        return -1;
-                    } else if (damageA < damageB) {
-                        return 1;
-                    } else {
-                        return 0;
-                    }
+                const safeData = Array.isArray(data) ? data : [];
+                const sortedData = [...safeData].sort((a, b) => {
+                    const damageA = a?.data?.at?.(-1) ?? 0;
+                    const damageB = b?.data?.at?.(-1) ?? 0;
+                    return damageB - damageA;
                 });
 
-                const newLineChartData = transformDataLineChartDamage(sortedData)
+                const newLineChartData = transformDataLineChartDamage(sortedData);
                 setDamageOverTimeData(newLineChartData);
 
                 const newCombinedDamageOverTimeData = newLineChartData[0]?.data?.map((_, index) =>
                     newLineChartData.reduce((sum, series) => sum + (series.data[index] ?? 0), 0)
                 ) ?? [];
 
-                setCombinedDamageOverTimeData(newCombinedDamageOverTimeData)
+                setCombinedDamageOverTimeData(newCombinedDamageOverTimeData);
 
-                const newPieChartData = transformDataPieDamage(sortedData)
+                const newPieChartData = transformDataPieDamage(sortedData);
                 setDamagePieChartData(newPieChartData);
 
-                const newTotalDamage = newCombinedDamageOverTimeData.at(-1);
-                setTotalDamage(newTotalDamage)
+                const newTotalDamage = newCombinedDamageOverTimeData.at(-1) ?? 0;
+                setTotalDamage(newTotalDamage);
 
-                const newNumberOfPlayers = newLineChartData.length
-                setNumberOfPlayers(newNumberOfPlayers)
-            })
-            .catch(error => console.error('Error:', error));
+                const newNumberOfPlayers = newLineChartData.length;
+                setNumberOfPlayers(newNumberOfPlayers);
+            });
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctLargestSingleDamageInstance?start_ut=${start_ut}&end_ut=${end_ut}&count=${largestDamageInstanceCount}`)
-            .then(response => response.json())
+        fetchJsonOrDefault(`http://${window.location.hostname}:5004/Home/GetListOfDistinctLargestSingleDamageInstance?start_ut=${start_ut}&end_ut=${end_ut}&count=${largestDamageInstanceCount}`, [])
             .then(data => {
-                setLargestDamageInstances(data)
-                setGraphLargestDamageInstance(data[0])
-            })
+                const safeData = Array.isArray(data) ? data : [];
+                setLargestDamageInstances(safeData);
+                setGraphLargestDamageInstance(safeData[0] ?? null);
+            });
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetTotalPlayerHealing?start_ut=${start_ut}&end_ut=${end_ut}`)
-            .then(response => response.json())
+        fetchJsonOrDefault(`http://${window.location.hostname}:5004/Home/GetTotalPlayerHealing?start_ut=${start_ut}&end_ut=${end_ut}`, 0)
             .then(data => {
-                setTotalHealing(data)
-            })
+                setTotalHealing(typeof data === 'number' ? data : 0);
+            });
 
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetDamagesBetweenUt?start_ut=${start_ut}&end_ut=${end_ut}`)
-            .then(response => response.json())
+        fetchJsonOrDefault(`http://${window.location.hostname}:5004/Home/GetDamagesBetweenUt?start_ut=${start_ut}&end_ut=${end_ut}`, [])
             .then(data => {
+                const safeData = Array.isArray(data) ? data : [];
                 const dmgMap = new Map();
 
-                const series = data.reduce((series, damage_simple) => {
-                    let entry = series.find((element) => element.label === damage_simple.player_name);
+                const series = safeData.reduce((accSeries, damage_simple) => {
+                    let entry = accSeries.find((element) => element.label === damage_simple.player_name);
 
                     if (!entry) {
                         entry = {
@@ -184,27 +183,27 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                             highlightScope: { highlight: 'series', fade: 'global' },
                             markerSize: 2,
                             data: [],
-                        }
-                        dmgMap.set(damage_simple.player_name, 0)
-                        series.push(entry)
+                        };
+                        dmgMap.set(damage_simple.player_name, 0);
+                        accSeries.push(entry);
                     }
 
                     entry.data.push({
                         x: damage_simple.unix_timestamp,
                         y: damage_simple.damage,
-                        id: entry.data.length
+                        id: entry.data.length,
                     });
 
-                    dmgMap.set(damage_simple.player_name, dmgMap.get(damage_simple.player_name) + damage_simple.damage);
+                    dmgMap.set(damage_simple.player_name, (dmgMap.get(damage_simple.player_name) ?? 0) + damage_simple.damage);
 
-                    return series
+                    return accSeries;
                 }, []);
 
-                series.sort((a, b) => dmgMap.get(b.label) - dmgMap.get(a.label))
+                series.sort((a, b) => (dmgMap.get(b.label) ?? 0) - (dmgMap.get(a.label) ?? 0));
 
-                setScatterPlotSeries(series)
-            })
-        
+                setScatterPlotSeries(series);
+            });
+
         getDamageBands()
     }, [start_ut, end_ut, burstCount, largestDamageInstanceCount]);
     

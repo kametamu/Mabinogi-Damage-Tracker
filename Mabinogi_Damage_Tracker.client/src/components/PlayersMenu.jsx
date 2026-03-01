@@ -15,11 +15,19 @@ export default function PlayersMenu() {
 
     useEffect(() => {
         fetch(`http://${window.location.hostname}:5004/Home/GetAllPlayers`)
-            .then(response => response.json())
+            .then(response => (response.ok ? response.json() : []))
             .then(data => {
-                setPlayers(data.value)
+                const nextPlayers = Array.isArray(data)
+                    ? data
+                    : Array.isArray(data?.value)
+                        ? data.value
+                        : [];
+                setPlayers(nextPlayers);
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error);
+                setPlayers([]);
+            });
     }, [])
 
     return (
