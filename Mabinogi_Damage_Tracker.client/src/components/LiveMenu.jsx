@@ -116,15 +116,10 @@ export default function LiveMenu() {
     };
 
     useEffect(() => {
-        if (!recording) {
-            closeStreams();
-            return;
-        }
-
         openStreams();
 
         return () => closeStreams();
-    }, [recording, pollingRate]);
+    }, [pollingRate]);
 
     useEffect(() => () => closeStreams(), []);
 
@@ -140,6 +135,7 @@ export default function LiveMenu() {
                     end_ut: endUT,
                 }),
             }).catch((error) => console.error('Error:', error));
+            setRecording(false);
         } else {
             const startTime = Math.floor(Date.now() / 1000);
             setStartUT(startTime);
@@ -153,10 +149,9 @@ export default function LiveMenu() {
             setDPS(0);
             setAverageDPS(0);
             setLiveSkillRows([]);
+            setRecording(true);
 
         }
-
-        setRecording(prev => !prev);
     };
 
     return (

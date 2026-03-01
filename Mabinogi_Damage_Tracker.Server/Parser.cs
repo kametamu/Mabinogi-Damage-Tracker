@@ -443,6 +443,7 @@ namespace Mabinogi_Damage_tracker
 
                 ushort lastSkillId = 0;
                 bool hasSkill = false;
+                long lastAttackerEntityId = 0;
 
                 for (int i = 0; i < subsub_packet_count; i++)
                 {
@@ -474,6 +475,7 @@ namespace Mabinogi_Damage_tracker
 
                     if (attackerAction)
                     {
+                        lastAttackerEntityId = creatureEntityId;
                         lastSkillId = skillId;
                         hasSkill = true;
 
@@ -494,75 +496,53 @@ namespace Mabinogi_Damage_tracker
                         continue;
                     }
 
-                    if (actionPacket.NextIs(PacketElementType.Int))
-                    {
-                        actionPacket.GetInt();
-                    }
-
-                    int alignSteps = 0;
-                    while (actionPacket.Peek() != PacketElementType.Float &&
-                           actionPacket.Peek() != PacketElementType.None &&
-                           alignSteps < 32)
-                    {
-                        switch (actionPacket.Peek())
-                        {
-                            case PacketElementType.Byte:
-                                actionPacket.GetByte();
-                                break;
-                            case PacketElementType.Short:
-                                actionPacket.GetShort();
-                                break;
-                            case PacketElementType.Int:
-                                actionPacket.GetInt();
-                                break;
-                            case PacketElementType.Long:
-                                actionPacket.GetLong();
-                                break;
-                            default:
-                                alignSteps = 32;
-                                break;
-                        }
-                        alignSteps++;
-                    }
-
                     if (!actionPacket.NextIs(PacketElementType.Float))
                     {
                         continue;
                     }
-
                     float damage = actionPacket.GetFloat();
+
                     if (!actionPacket.NextIs(PacketElementType.Float))
                     {
                         continue;
                     }
                     float wound = actionPacket.GetFloat();
+
                     if (!actionPacket.NextIs(PacketElementType.Int))
                     {
                         continue;
                     }
                     int manaDamage = actionPacket.GetInt();
 
+                    // NaoParse-compatible read order for target packet tail:
+                    // (optional old int) -> xDiff(float,required) -> yDiff(float,required)
+                    // -> (optional newX/newY and optional int) -> trailing ints
+                    // -> effectiveFlags(byte) -> delay(int) -> attacker(long)
                     if (actionPacket.NextIs(PacketElementType.Int))
                     {
                         actionPacket.GetInt();
                     }
 
-                    if (actionPacket.NextIs(PacketElementType.Float))
+                    if (!actionPacket.NextIs(PacketElementType.Float))
                     {
-                        actionPacket.GetFloat();
+                        continue;
                     }
-                    if (actionPacket.NextIs(PacketElementType.Float))
+                    actionPacket.GetFloat(); // xDiff
+
+                    if (!actionPacket.NextIs(PacketElementType.Float))
                     {
-                        actionPacket.GetFloat();
+                        continue;
                     }
+                    actionPacket.GetFloat(); // yDiff
 
                     if (actionPacket.NextIs(PacketElementType.Float))
                     {
-                        actionPacket.GetFloat();
+                        actionPacket.GetFloat(); // newX
                         if (actionPacket.NextIs(PacketElementType.Float))
                         {
-                            actionPacket.GetFloat();
+                            actionPacket.GetFloat(); // newY
                         }
+
                         if (actionPacket.NextIs(PacketElementType.Int))
                         {
                             actionPacket.GetInt();
@@ -574,28 +554,39 @@ namespace Mabinogi_Damage_tracker
                         actionPacket.GetInt();
                     }
 
-                    if (actionPacket.NextIs(PacketElementType.Byte))
+                    if (!actionPacket.NextIs(PacketElementType.Byte))
                     {
-                        actionPacket.GetByte();
+                        continue;
                     }
-                    if (actionPacket.NextIs(PacketElementType.Int))
-                    {
-                        actionPacket.GetInt();
-                    }
+                    actionPacket.GetByte(); // effectiveFlags
 
-                    long attacker;
-                    long enemy = creatureEntityId;
-                    if (!actionPacket.NextIs(PacketElementType.Long))
+                    if (!actionPacket.NextIs(PacketElementType.Int))
                     {
-                        attacker = 0;
+                        continue;
+                    }
+                    actionPacket.GetInt(); // delay
+
+                    long attacker = 0;
+                    long enemy = creatureEntityId;
+                    if (actionPacket.NextIs(PacketElementType.Long))
+                    {
+                        attacker = actionPacket.GetLong();
+                    }
+                    else if (lastAttackerEntityId != 0)
+                    {
+                        attacker = lastAttackerEntityId;
                         if (Config.DebugSkillPackets)
                         {
-                            LogsController.WriteLog($"[DAMAGE EVT FALLBACK] Missing attacker id in target packet. enemy={enemy} dmg={damage:0.###}");
+                            LogsController.WriteLog($"[DAMAGE EVT FALLBACK] Missing attacker id in target packet. fallback attacker={attacker} enemy={enemy} dmg={damage:0.###}");
                         }
                     }
                     else
                     {
-                        attacker = actionPacket.GetLong();
+                        if (Config.DebugSkillPackets)
+                        {
+                            LogsController.WriteLog($"[SKILL RESOLVE FALLBACK DROPPED] Missing attacker id and no attacker packet context. enemy={enemy} dmg={damage:0.###}");
+                        }
+                        continue;
                     }
 
                     ushort rawSkill = hasSkill ? lastSkillId : (ushort)0;
@@ -655,6 +646,7 @@ namespace Mabinogi_Damage_tracker
 
             if (Config.DebugSkillPackets)
             {
+                LogsController.WriteLog($"[SKILL RESOLVE] rawSkill={ev.RawSkill} rawSubSkill={ev.RawSubSkill} resolved={ev.ResolvedSkill}");
                 LogsController.WriteLog($"[DAMAGE EVT] ut={ev.Ut} attacker={ev.AttackerId} enemy={ev.EnemyId} dmg={ev.Damage:0.###} rawSkill={ev.RawSkill} rawSub={ev.RawSubSkill} resolved={ev.ResolvedSkill}");
                 if (Config.DebugSkillHex && packetBin != null)
                 {
