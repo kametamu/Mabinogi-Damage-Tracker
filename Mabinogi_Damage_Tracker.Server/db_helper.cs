@@ -270,6 +270,12 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
+
+
+        public static void add_damage_from_event(DamageEvent ev)
+        {
+            add_damage(ev.AttackerId, ev.Damage, ev.Wound, ev.ManaDamage, ev.EnemyId, ev.ResolvedSkill, ev.RawSkill, ev.RawSubSkill);
+        }
         public static Damage_Simple Get_Largest_Single_Damage_Instance(int start_ut, int end_ut)
         {
             return Get_ListOf_Distinct_Largest_Single_Damage_Instance(start_ut, end_ut, 1)[0];

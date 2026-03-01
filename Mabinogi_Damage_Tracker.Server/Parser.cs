@@ -12,6 +12,8 @@ using System.Linq.Expressions;
 using System.Reflection.Metadata.Ecma335;
 using SQLitePCL;
 using Mabinogi_Damage_Tracker.NaoParseCompat;
+using Mabinogi_Damage_tracker.Live;
+using Mabinogi_Damage_tracker.Models;
 
 
 
@@ -611,21 +613,7 @@ namespace Mabinogi_Damage_tracker
                         continue;
                     }
 
-                    var normalized = SkillNormalization.Resolve(rawSkill, rawSubSkill);
-                    int effectiveSkillId = normalized.resolvedSkill;
-
-                    if (Config.DebugSkillPackets)
-                    {
-                        LogsController.WriteLog($"[SKILL DEBUG][TARGET] attacker={attacker} enemy={enemy} dmg={damage:0.###} rawSkill={rawSkill} rawSub={rawSubSkill} resolved={effectiveSkillId} ({normalized.reason})");
-                        LogsController.WriteLog($"[SKILL RESOLVE] rawSkill={rawSkill} rawSubSkill={rawSubSkill} resolved={effectiveSkillId}");
-                        if (Config.DebugSkillHex)
-                        {
-                            LogsController.WriteLog($"[SKILL HEX][TARGET] {BitConverter.ToString(buff)}");
-                        }
-                    }
-
-                    LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker, enemy, damage));
-                    db_helper.add_damage(attacker, damage, wound, manaDamage, enemy, effectiveSkillId, rawSkill, rawSubSkill);
+                    EmitDamageEvent(attacker, enemy, damage, wound, manaDamage, rawSkill, rawSubSkill, buff);
                 }
             }
             catch (ArgumentOutOfRangeException ex)
@@ -640,6 +628,37 @@ namespace Mabinogi_Damage_tracker
                 Debug.WriteLine("caught an execption after finding a damage packet: ex {0}", ex.ToString());
             }
         }
+
+
+        private static void EmitDamageEvent(long attackerId, long enemyId, float damage, float wound, int manaDamage, int rawSkill, int rawSubSkill, byte[]? packetBin = null)
+        {
+            var norm = SkillNormalization.Resolve(rawSkill, rawSubSkill);
+            var ev = DamageEvent.CreateNow(
+                attackerId,
+                enemyId,
+                damage,
+                wound,
+                manaDamage,
+                rawSkill,
+                rawSubSkill,
+                norm.resolvedSkill,
+                SkillNormalization.Version);
+
+            EventBus.PublishDamage(ev);
+            db_helper.add_damage_from_event(ev);
+
+            if (Config.DebugSkillPackets)
+            {
+                LogsController.WriteLog($"[DAMAGE EVT] ut={ev.Ut} attacker={ev.AttackerId} enemy={ev.EnemyId} dmg={ev.Damage:0.###} rawSkill={ev.RawSkill} rawSub={ev.RawSubSkill} resolved={ev.ResolvedSkill}");
+                if (Config.DebugSkillHex && packetBin != null)
+                {
+                    LogsController.WriteLog($"[SKILL HEX][EVENT] {BitConverter.ToString(packetBin)}");
+                }
+            }
+
+            LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attackerId, enemyId, damage));
+        }
+
 
         private static void read_chat(TcpPacket packet, int cursor)
         {

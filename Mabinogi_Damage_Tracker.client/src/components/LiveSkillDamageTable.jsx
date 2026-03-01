@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography';
@@ -12,48 +12,19 @@ import Box from '@mui/material/Box';
 import TextField from '@mui/material/TextField';
 import { localizeSkillName } from '../localization/skills';
 
-export default function LiveSkillDamageTable({ startUT, recording }) {
+export default function LiveSkillDamageTable({ rows = [] }) {
   const { t, i18n } = useTranslation();
-  const [rows, setRows] = useState([]);
   const [playerFilter, setPlayerFilter] = useState('');
   const [skillFilter, setSkillFilter] = useState('');
-
-  useEffect(() => {
-    if (!recording || !startUT) {
-      setRows([]);
-      return;
-    }
-
-    const loadRows = () => {
-      const endUT = Math.floor(Date.now() / 1000);
-      fetch(`http://${window.location.hostname}:5004/Home/GetSkillDamageRanking?start_ut=${startUT}&end_ut=${endUT}`)
-        .then((response) => response.json())
-        .then((data) => {
-          setRows((data || []).map((item, index) => ({
-            id: `${item.playerId}-${item.skillId}-${index}`,
-            playerName: item.playerName,
-            skillId: item.skillId,
-            totalDamage: item.totalDamage,
-          })));
-        })
-        .catch((error) => {
-          console.error('Error:', error);
-          setRows([]);
-        });
-    };
-
-    loadRows();
-    const interval = setInterval(loadRows, 3000);
-    return () => clearInterval(interval);
-  }, [recording, startUT]);
 
   const filteredRows = useMemo(() => {
     const playerKeyword = playerFilter.trim().toLowerCase();
     const skillKeyword = skillFilter.trim().toLowerCase();
+    const safeRows = Array.isArray(rows) ? rows : [];
 
-    return rows.filter((row) => {
+    return safeRows.filter((row) => {
       const localizedSkill = localizeSkillName(row.skillId, null, i18n.language).toLowerCase();
-      const playerMatch = playerKeyword === '' || row.playerName.toLowerCase().includes(playerKeyword);
+      const playerMatch = playerKeyword === '' || (row.playerName ?? '').toLowerCase().includes(playerKeyword);
       const skillMatch = skillKeyword === '' || localizedSkill.includes(skillKeyword);
       return playerMatch && skillMatch;
     });
@@ -91,10 +62,10 @@ export default function LiveSkillDamageTable({ startUT, recording }) {
             </TableRow>
           </TableHead>
           <TableBody>
-            {visibleRows.map((row) => (
-              <TableRow key={row.id}>
+            {visibleRows.map((row, index) => (
+              <TableRow key={row.id ?? `${row.playerId}-${row.skillId}-${index}`}>
                 <TableCell>{localizeSkillName(row.skillId, null, i18n.language)}</TableCell>
-                <TableCell>{row.playerName}</TableCell>
+                <TableCell>{row.playerName ?? row.playerId}</TableCell>
                 <TableCell align="right">{Number(row.totalDamage || 0).toLocaleString()}</TableCell>
               </TableRow>
             ))}

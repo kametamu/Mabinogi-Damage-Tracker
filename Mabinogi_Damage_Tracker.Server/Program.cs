@@ -1,9 +1,11 @@
+using Mabinogi_Damage_tracker.Live;
 using System.Diagnostics;
 using Mabinogi_Damage_tracker;
 
 var builder = WebApplication.CreateBuilder(args);
 
 db_helper.Initalize_db();
+LiveAggregators.Start();
 
 Parser.Start();
 

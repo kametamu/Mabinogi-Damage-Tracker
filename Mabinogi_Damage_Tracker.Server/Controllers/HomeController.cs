@@ -2,6 +2,7 @@ using System.Diagnostics;
 using System.Text.Json.Serialization;
 using Mabinogi_Damage_tracker.Models;
 using Microsoft.AspNetCore.Mvc;
+using Mabinogi_Damage_tracker.Live;
 
 namespace Mabinogi_Damage_tracker.Controllers
 {
@@ -45,6 +46,14 @@ namespace Mabinogi_Damage_tracker.Controllers
                 db_helper.delete_recording(ids[i]);
             }
             return Ok(Json(ids));
+        }
+
+
+        [HttpPost]
+        public IActionResult ResetLiveMetrics()
+        {
+            LiveAggregators.Reset();
+            return Ok(new { ok = true });
         }
 
         public IActionResult PostRecording([FromBody] Recording_Simple recording)
