@@ -30,7 +30,7 @@ export function localizeSkillName(skillId, fallbackName, lang = 'en') {
     return english;
   }
 
-  return skillKey;
+  return `Unknown (${skillKey})`;
 }
 
 export default skillMaps;
