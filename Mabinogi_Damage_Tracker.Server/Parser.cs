@@ -30,6 +30,7 @@ namespace Mabinogi_Damage_tracker
         
         
         public static bool pause = false;
+        public static bool IsRecordingActive = false;
         #if DEBUG_LIVE || RELEASE
             static LibPcapLiveDevice? device = null;
         #endif
@@ -582,13 +583,20 @@ namespace Mabinogi_Damage_tracker
                         actionPacket.GetInt();
                     }
 
+                    long attacker;
+                    long enemy = creatureEntityId;
                     if (!actionPacket.NextIs(PacketElementType.Long))
                     {
-                        continue;
+                        attacker = 0;
+                        if (Config.DebugSkillPackets)
+                        {
+                            LogsController.WriteLog($"[DAMAGE EVT FALLBACK] Missing attacker id in target packet. enemy={enemy} dmg={damage:0.###}");
+                        }
                     }
-
-                    long attacker = actionPacket.GetLong();
-                    long enemy = creatureEntityId;
+                    else
+                    {
+                        attacker = actionPacket.GetLong();
+                    }
 
                     ushort rawSkill = hasSkill ? lastSkillId : (ushort)0;
                     ushort rawSubSkill = 0;
@@ -603,12 +611,7 @@ namespace Mabinogi_Damage_tracker
                         continue;
                     }
 
-                    if (rawSkill == 601 || rawSkill == 512 || rawSkill == 590)
-                    {
-                        continue;
-                    }
-
-                    if (attacker < 0x0010000000000001 || attacker > 0x0010010000000001)
+                    if (attacker != 0 && (attacker < 0x0010000000000001 || attacker > 0x0010010000000001))
                     {
                         continue;
                     }
@@ -645,7 +648,10 @@ namespace Mabinogi_Damage_tracker
                 SkillNormalization.Version);
 
             EventBus.PublishDamage(ev);
-            db_helper.add_damage_from_event(ev);
+            if (IsRecordingActive)
+            {
+                db_helper.add_damage_from_event(ev);
+            }
 
             if (Config.DebugSkillPackets)
             {

@@ -53,12 +53,14 @@ namespace Mabinogi_Damage_tracker.Controllers
         public IActionResult ResetLiveMetrics()
         {
             LiveAggregators.Reset();
+            Parser.IsRecordingActive = true;
             return Ok(new { ok = true });
         }
 
         public IActionResult PostRecording([FromBody] Recording_Simple recording)
         {
             db_helper.add_recording(recording.Name, recording.Start_ut, recording.End_ut);
+            Parser.IsRecordingActive = false;
             return Ok(Json(recording));
         }
 
