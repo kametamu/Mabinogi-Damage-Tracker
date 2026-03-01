@@ -58,6 +58,7 @@
     "skillId": "Skill ID",
     "count": "Count",
     "copy": "Copy",
+    "loading": "Loading...",
     "unknownSkillsHelper": "If you see many unknown IDs after an update, skill dictionary may need updating or parsing may have changed."
   }
 }

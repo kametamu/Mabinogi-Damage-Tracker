@@ -85,7 +85,7 @@ export default function UnknownSkillsDebugPanel({ start_ut, end_ut }) {
                 )}
                 {loading && (
                   <TableRow>
-                    <TableCell colSpan={3} align="center">Loading...</TableCell>
+                    <TableCell colSpan={3} align="center">{t('analytics.loading')}</TableCell>
                   </TableRow>
                 )}
               </TableBody>

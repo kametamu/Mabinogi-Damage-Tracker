@@ -58,6 +58,7 @@
     "skillId": "スキルID",
     "count": "件数",
     "copy": "コピー",
+    "loading": "読み込み中...",
     "unknownSkillsHelper": "アップデート後に不明IDが多い場合、スキル辞書の更新またはパース仕様の変更が考えられます。"
   }
 }
