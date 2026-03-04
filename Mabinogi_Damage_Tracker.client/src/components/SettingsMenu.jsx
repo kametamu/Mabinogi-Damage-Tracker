@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -16,6 +17,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Button from '@mui/material/Button';
 
 export default function SettingsMenu() {
+    const { t, i18n } = useTranslation();
     const { mode, setMode } = useContext(AppContext);
     const { pollingRate, setPollingRate } = useContext(AppContext);
     const { burstCount, setBurstCount } = useContext(AppContext);
@@ -51,6 +53,12 @@ export default function SettingsMenu() {
         setThemeChecked(event.target.checked);
     };
 
+    const handleLanguageChange = (event) => {
+        const selectedLanguage = event.target.value;
+        i18n.changeLanguage(selectedLanguage);
+        localStorage.setItem('lang', selectedLanguage);
+    };
+
     const handleAdapterChange = async (event) => {
         if (event.target.value === undefined) return;
 
@@ -76,6 +84,26 @@ export default function SettingsMenu() {
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', width: "40vw", gap: '40px' }}>
+            <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Box>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('common.language')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.languageLabel')}</Typography>
+                </Box>
+                <FormControl sx={{ m: 1, minWidth: 180 }}>
+                    <InputLabel id="language-selector-label">{t('common.language')}</InputLabel>
+                    <Select
+                        labelId="language-selector-label"
+                        id="language-selector"
+                        value={i18n.language.startsWith('ja') ? 'ja' : 'en'}
+                        onChange={handleLanguageChange}
+                        label={t('common.language')}
+                    >
+                        <MenuItem value="en">{t('common.english')}</MenuItem>
+                        <MenuItem value="ja">{t('common.japanese')}</MenuItem>
+                    </Select>
+                </FormControl>
+            </Box>
+            <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
                     <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Color Theme</Typography>
@@ -140,7 +168,7 @@ export default function SettingsMenu() {
                         label="Adapter"
                     >
                         {adapters.length ?
-                            adapters.map((item) => <MenuItem value={item}>{item}</MenuItem>)
+                            adapters.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)
                             :
                             (<Box sx={{ display: 'flex', justifyContent: 'center' }}>
                                 <Typography>No Adapters Available</Typography>
@@ -152,8 +180,8 @@ export default function SettingsMenu() {
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Restart Parse</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Restarts the parser service</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.restartParse')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.restartDescription')}</Typography>
                 </Box>
                 <Button color="error" variant="contained"
                     onClick={async () => {
@@ -168,7 +196,7 @@ export default function SettingsMenu() {
                         }
                     }}
                     >
-                Restart</Button>
+                {t('settings.restart')}</Button>
             </Box>
 
             {/* Feedback component */}

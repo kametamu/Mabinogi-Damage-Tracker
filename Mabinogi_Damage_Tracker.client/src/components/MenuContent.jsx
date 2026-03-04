@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext';
 import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
@@ -17,19 +18,20 @@ import PersonIcon from '@mui/icons-material/Person';
 
 const mainListItems = [
     { text: 'Home', icon: <HomeRoundedIcon /> },
-    { text: 'Live', icon: <RssFeedIcon />},
-    { text: 'Players', icon: <PersonIcon />},
+    { text: 'Live', icon: <RssFeedIcon />, labelKey: 'sideMenu.live' },
+    { text: 'Players', icon: <PersonIcon /> },
     { text: 'Recordings', icon: <HistoryIcon /> },
 ];
 
 const secondaryListItems = [
-    { text: 'Settings', icon: <SettingsRoundedIcon /> },
+    { text: 'Settings', icon: <SettingsRoundedIcon />, labelKey: 'sideMenu.settings' },
     { text: 'About', icon: <InfoRoundedIcon /> },
     { text: 'Feedback', icon: <HelpRoundedIcon /> },
 ];
 
 export default function MenuContent() {
-    const { menu, setMenu } = useContext(AppContext) 
+    const { t } = useTranslation();
+    const { menu, setMenu } = useContext(AppContext);
 
     return (
     <Stack sx={{ flexGrow: 1, p: 1, justifyContent: 'space-between' }}>
@@ -40,7 +42,7 @@ export default function MenuContent() {
                 setMenu({ name: item.text })
                 }}>
                 <ListItemIcon>{item.icon}</ListItemIcon>
-                <ListItemText primary={item.text} />
+                <ListItemText primary={item.labelKey ? t(item.labelKey) : item.text} />
             </ListItemButton>
             </ListItem>
         ))}
@@ -49,7 +51,7 @@ export default function MenuContent() {
         {secondaryListItems.map((item, index) => (
             <ListItem key={index} disablePadding sx={{ display: 'block' }} >
                 <ListItemButton onClick={() => {
-                    if (item.text === "Feedback") {
+                    if (item.text === 'Feedback') {
                         window.open('https://github.com/KilloPillers/Mabinogi_Damage_Tracker/issues')
                     }
                     else {
@@ -57,7 +59,7 @@ export default function MenuContent() {
                     }
                     }}>
                     <ListItemIcon>{item.icon}</ListItemIcon>
-                    <ListItemText primary={item.text} />
+                    <ListItemText primary={item.labelKey ? t(item.labelKey) : item.text} />
                 </ListItemButton>
             </ListItem>
         ))}

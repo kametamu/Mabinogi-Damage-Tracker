@@ -1,0 +1,17 @@
+{
+  "common": {
+    "language": "Language",
+    "english": "English",
+    "japanese": "日本語"
+  },
+  "settings": {
+    "languageLabel": "Language",
+    "restartParse": "Restart Parse",
+    "restartDescription": "Restarts the parser service",
+    "restart": "Restart"
+  },
+  "sideMenu": {
+    "live": "Live",
+    "settings": "Settings"
+  }
+}

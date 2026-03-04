@@ -1,0 +1,17 @@
+{
+  "common": {
+    "language": "言語",
+    "english": "English",
+    "japanese": "日本語"
+  },
+  "settings": {
+    "languageLabel": "言語",
+    "restartParse": "解析の再起動",
+    "restartDescription": "パーサーサービスを再起動します",
+    "restart": "再起動"
+  },
+  "sideMenu": {
+    "live": "ライブ",
+    "settings": "設定"
+  }
+}
