@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -35,6 +36,7 @@ function transformDataLineChartDamage(apiData) {
 }
 
 export default function LiveMenu() {
+    const { t } = useTranslation();
     const { pollingRate } = useContext(AppContext);
     const [recording, setRecording] = useState(false);
     const [damagePieChartData, setDamagePieChartData] = useState([]); // for the piechart
@@ -233,17 +235,17 @@ export default function LiveMenu() {
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2}}>
-            <Typography variant="h2" sx={{ marginBottom: "24px" }}>Live</Typography>
+            <Typography variant="h2" sx={{ marginBottom: "24px" }}>{t('live.title')}</Typography>
             <Paper sx={{ height: "100%", padding: 2}}>
                 <Grid container spacing={2}>
                     <Grid item size={2} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' } }>
                         {recording ?
                             <Button sx={RecordingButtonStyle} variant="outlined" color="error" onClick={toggleRecording}>
-                                End Recording
+                                {t('live.endRecording')}
                             </Button>
                             :
                             <Button sx={RecordingButtonStyle} variant="contained" color="error" onClick={toggleRecording}>
-                                Start Recording
+                                {t('live.startRecording')}
                             </Button>
                         }
                     </Grid>

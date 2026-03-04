@@ -1,5 +1,6 @@
 import { LineChart } from '@mui/x-charts/LineChart';
 import { Paper, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 function formatLargeNumber(num) {
     if (num === null || num === undefined || isNaN(num)) return '0';
@@ -23,11 +24,12 @@ function formatLargeNumber(num) {
 }
 
 export default function DamageOverTimeLineGraph({ chartData, start_ut }) {
+    const { t } = useTranslation();
     const dataLength = chartData[0]?.data?.length || 0;
 
     return (
         <Paper square={false} sx={{ padding: "16px", height: "100%" }}>
-            <Typography variant="h4" sx={{ marginBottom: "20px" }}>Damage Over Time</Typography>
+            <Typography variant="h4" sx={{ marginBottom: "20px" }}>{t('common.damageOverTime')}</Typography>
             <LineChart
                 height={300}
                 series={chartData.length ? chartData : [{ data: [] }]}

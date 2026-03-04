@@ -17,16 +17,16 @@ import RssFeedIcon from '@mui/icons-material/RssFeed';
 import PersonIcon from '@mui/icons-material/Person';
 
 const mainListItems = [
-    { text: 'Home', icon: <HomeRoundedIcon /> },
+    { text: 'Home', icon: <HomeRoundedIcon />, labelKey: 'sideMenu.home' },
     { text: 'Live', icon: <RssFeedIcon />, labelKey: 'sideMenu.live' },
-    { text: 'Players', icon: <PersonIcon /> },
-    { text: 'Recordings', icon: <HistoryIcon /> },
+    { text: 'Players', icon: <PersonIcon />, labelKey: 'sideMenu.players' },
+    { text: 'Recordings', icon: <HistoryIcon />, labelKey: 'sideMenu.recordings' },
 ];
 
 const secondaryListItems = [
     { text: 'Settings', icon: <SettingsRoundedIcon />, labelKey: 'sideMenu.settings' },
-    { text: 'About', icon: <InfoRoundedIcon /> },
-    { text: 'Feedback', icon: <HelpRoundedIcon /> },
+    { text: 'About', icon: <InfoRoundedIcon />, labelKey: 'sideMenu.about' },
+    { text: 'Feedback', icon: <HelpRoundedIcon />, labelKey: 'sideMenu.feedback' },
 ];
 
 export default function MenuContent() {

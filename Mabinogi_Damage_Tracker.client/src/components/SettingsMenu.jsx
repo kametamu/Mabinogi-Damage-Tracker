@@ -106,20 +106,20 @@ export default function SettingsMenu() {
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Color Theme</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the color mode for the application to light or dark mode</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.colorTheme')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.colorThemeDescription')}</Typography>
                 </Box>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', grow: 2, alignSelf: 'flex-end' }}>
-                    <Typography>Light</Typography>
+                    <Typography>{t('common.light')}</Typography>
                     <Switch checked={themeChecked} onChange={handleThemeChange} />
-                    <Typography>Dark</Typography>
+                    <Typography>{t('common.dark')}</Typography>
                 </Stack>
             </Box>
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Number of Burst</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the number of unique damage burst to view in the analytics page.</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.numberOfBurst')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.numberOfBurstDescription')}</Typography>
                 </Box>
                 <NumberField label="Number Field" min={1} max={16}
                     value={burstCount}
@@ -129,8 +129,8 @@ export default function SettingsMenu() {
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Number of Largest Hits</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the number of unique single largest damage instances to view in the analytics page.</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.numberOfLargestHits')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.numberOfLargestHitsDescription')}</Typography>
                 </Box>
                 <NumberField label="Number Field" min={1} max={16}
                     value={largestDamageInstanceCount}
@@ -141,8 +141,8 @@ export default function SettingsMenu() {
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Polling Rate</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the interval for receving data while recording.</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.pollingRate')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.pollingRateDescription')}</Typography>
                 </Box>
                 <NumberField label="Number Field" min={10} max={10000} units="ms"
                     value={pollingRate}
@@ -154,27 +154,27 @@ export default function SettingsMenu() {
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Select Adapter</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the adapter for the parser to use.</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.selectAdapter')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.selectAdapterDescription')}</Typography>
                 </Box>
                 <FormControl sx={{ m: 1, minWidth: 180 }}>
-                    <InputLabel id="adapter-InputLabel">Adapter</InputLabel>
+                    <InputLabel id="adapter-InputLabel">{t('settings.adapter')}</InputLabel>
                     <Select
                         labelId="adapter-selector"
                         id="adapter-selector"
                         value={selectedAdapter}
                         onChange={handleAdapterChange}
                         sx={{ minWidth: 100 }}
-                        label="Adapter"
+                        label={t('settings.adapter')}
                     >
                         {adapters.length ?
                             adapters.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)
                             :
                             (<Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                <Typography>No Adapters Available</Typography>
+                                <Typography>{t('settings.noAdaptersAvailable')}</Typography>
                             </Box>)}
                     </Select>
-                    {selectedAdapter === "" ? <Typography variant="caption" color='warning'>No Adapter Saved</Typography> : <></>}
+                    {selectedAdapter === "" ? <Typography variant="caption" color='warning'>{t('settings.noAdapterSaved')}</Typography> : <></>}
                 </FormControl>
             </Box>
             <Divider />

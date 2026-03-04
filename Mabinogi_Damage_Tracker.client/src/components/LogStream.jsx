@@ -1,9 +1,11 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import Divider from '@mui/material/Divider';
 import Typography from '@mui/material/Typography';
 
 
 export default function LogStream() {
+    const { t } = useTranslation();
     const [logs, setLogs] = useState([]);
 
     useEffect(() => {
@@ -19,7 +21,7 @@ export default function LogStream() {
 
     return (
         <div style={{ display: 'flex', flexDirection: 'column', height: "150px" }}>
-            <Typography variant="h5">Event Logs</Typography>
+            <Typography variant="h5">{t('live.eventLogs')}</Typography>
             <Divider />
             <div style={{ flex: 1, display: 'flex', flexDirection: 'column', justifyContent: 'flex-end', overflowY: "auto" }}>
                 {logs.map((log, i) => {

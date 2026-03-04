@@ -5,6 +5,7 @@ import Paper from '@mui/material/Paper';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import CircleIcon from '@mui/icons-material/Circle';
+import { useTranslation } from 'react-i18next';
 
 const settings = {
     margin: { right: 5 },
@@ -106,12 +107,13 @@ function PieCenterLabel({ children }) {
 }
 
 export default function PlayerDamagePieChart({ chartData }) {
+    const { t } = useTranslation();
     const totalDamage = (chartData || []).reduce((prev, curr) => prev + curr.value, 0);
      
 
     return (
         <Paper square={false} sx={{ padding: "16px", height: "100%", display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Typography variant="h4">Total Damage</Typography>
+            <Typography variant="h4">{t('common.totalDamage')}</Typography>
             <PieChart
                 series={[
                     {

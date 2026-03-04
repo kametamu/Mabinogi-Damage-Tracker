@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext'
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
@@ -41,6 +42,7 @@ function transformDataLineChartDamage(apiData) {
 }
 
 export default function AnalyticsMenu({ start_ut, end_ut }) {
+    const { t } = useTranslation();
     const { burstCount, largestDamageInstanceCount } = useContext(AppContext)
     const [damageOverTimeData, setDamageOverTimeData] = useState([])
     const [damagePieChartData, setDamagePieChartData] = useState([])
@@ -205,7 +207,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     
     return (
         <Box>
-            <Typography variant="h2" sx={{ marginBottom: "8px"}}>Analytics</Typography>
+            <Typography variant="h2" sx={{ marginBottom: "8px"}}>{t('analytics.title')}</Typography>
             <Grid container spacing={{ xs: 1, md: 2 }} alignItems="stretch" sx={{ flexGrow: 1 }}>
                 { /* Total Damage Card */}
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} sx={{ height: '220px' }} >
