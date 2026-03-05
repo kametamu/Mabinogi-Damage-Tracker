@@ -23,6 +23,7 @@ namespace Mabinogi_Damage_tracker
         static bool savenextpacket = false;
         static BindingList<Name> character_names = new BindingList<Name>();
         static UInt64 last_healer = 0;
+        private static readonly UTF8Encoding StrictUtf8 = new UTF8Encoding(false, true);
         public static string adapter_description;
         public static List<string> adapters = new List<string>();
         
@@ -651,18 +652,8 @@ namespace Mabinogi_Damage_tracker
                     return;
                 }
 
-                string playername = extractedStrings[0].Trim();
-
+                string playername = extractedStrings.FirstOrDefault(IsValidPlayerName);
                 if (string.IsNullOrWhiteSpace(playername)) { return; }
-                // 既存制限維持
-                if (playername.Length > 36) { return; }
-                if (playername.Any(char.IsControl)) { return; }
-
-                // システムチャンネルタグ（<COMBAT> 等）を除外
-                if (playername.Length >= 3 && playername.StartsWith("<") && playername.EndsWith(">")) { return; }
-
-                // システム通知「薪:1/5   火種:1/5」のような進捗文は : / 空白 を含むため除外
-                if (playername.Contains(':') || playername.Contains('/') || playername.Any(c => c == ' ' || c == '\t')) { return; }
 
                 //character_names.Add(new Name(playername, playerid));
                 db_helper.add_player(playername, (Int64)playerid);
@@ -686,7 +677,7 @@ namespace Mabinogi_Damage_tracker
             }
 
             // scan: 06 00 <len> <utf8 bytes> 00
-            for (int i = startInclusive; i + 3 < endExclusive; i++)
+            for (int i = startInclusive; i + 4 < endExclusive; i++)
             {
                 if (payloadData[i] != 0x06 || payloadData[i + 1] != 0x00)
                 {
@@ -715,7 +706,7 @@ namespace Mabinogi_Damage_tracker
 
                 try
                 {
-                    string value = new UTF8Encoding(false, true).GetString(payloadData, textStart, len);
+                    string value = StrictUtf8.GetString(payloadData, textStart, len);
                     if (string.IsNullOrWhiteSpace(value))
                     {
                         continue;
@@ -735,6 +726,26 @@ namespace Mabinogi_Damage_tracker
             }
 
             return results;
+        }
+
+
+        private static bool IsValidPlayerName(string candidate)
+        {
+            if (string.IsNullOrWhiteSpace(candidate)) { return false; }
+
+            string playername = candidate.Trim();
+
+            // 既存制限維持
+            if (playername.Length > 36) { return false; }
+            if (playername.Any(char.IsControl)) { return false; }
+
+            // システムチャンネルタグ（<COMBAT> 等）を除外
+            if (playername.Length >= 3 && playername.StartsWith("<") && playername.EndsWith(">")) { return false; }
+
+            // システム通知「薪:1/5   火種:1/5」のような進捗文は : / 空白 を含むため除外
+            if (playername.Contains(':') || playername.Contains('/') || playername.Any(c => c == ' ' || c == '\t')) { return false; }
+
+            return true;
         }
 
         private static void read_variable_length_uint64(Span<byte> bytes, out UInt64 parsedint, out int bytesread)
