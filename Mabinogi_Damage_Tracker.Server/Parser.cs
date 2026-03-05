@@ -284,7 +284,7 @@ namespace Mabinogi_Damage_tracker
                         pack_healing(tcp, cursor, ref healing_packs, (int)sub_packet_length, begining_of_packet_cursor);
                         break;
                     case Op_Codes.ChatMessage:
-                        read_chat(tcp, cursor);
+                        read_chat(tcp, cursor, (int)sub_packet_length, begining_of_packet_cursor);
                         break;
                     case Op_Codes.CombatActionPack:
                         pack_damage(tcp, cursor, (int)sub_packet_length, begining_of_packet_cursor);
@@ -617,10 +617,19 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
-        private static void read_chat(TcpPacket packet, int cursor)
+        private static void read_chat(TcpPacket packet, int cursor, int sub_packet_length, int begining_of_packet_cursor)
         {
             try
             {
+                int subPacketStart = begining_of_packet_cursor;
+                int subPacketEnd = begining_of_packet_cursor + sub_packet_length;
+
+                // safety: opcode直後のcursorがサブパケット境界外なら解析しない
+                if (cursor < subPacketStart || cursor + sizeof(UInt64) > subPacketEnd)
+                {
+                    return;
+                }
+
                 //the next uint64 is the palyer id
                 UInt64 playerid = BinaryPrimitives.ReadUInt64BigEndian(packet.PayloadData.AsSpan(cursor));
 
@@ -634,20 +643,26 @@ namespace Mabinogi_Damage_tracker
                     return;
                 }
 
-                cursor = 25;
-                byte namelength = packet.PayloadData[25];
+                List<string> extractedStrings = ExtractLengthPrefixedUtf8Strings(packet.PayloadData, subPacketStart, subPacketEnd);
 
-                if (namelength > 36 || namelength <= 1) { return; }
-                cursor++;
-                //the next [namelength] bytes is the name
+                // name + message を期待するため、最低2つの文字列が必要
+                if (extractedStrings.Count < 2)
+                {
+                    return;
+                }
 
-                string playername = Encoding.UTF8.GetString(packet.PayloadData, cursor, (int)namelength - 1);
+                string playername = extractedStrings[0].Trim();
 
                 if (string.IsNullOrWhiteSpace(playername)) { return; }
-                playername = playername.Trim();
+                // 既存制限維持
+                if (playername.Length > 36) { return; }
                 if (playername.Any(char.IsControl)) { return; }
 
+                // システムチャンネルタグ（<COMBAT> 等）を除外
                 if (playername.Length >= 3 && playername.StartsWith("<") && playername.EndsWith(">")) { return; }
+
+                // システム通知「薪:1/5   火種:1/5」のような進捗文は : / 空白 を含むため除外
+                if (playername.Contains(':') || playername.Contains('/') || playername.Any(c => c == ' ' || c == '\t')) { return; }
 
                 //character_names.Add(new Name(playername, playerid));
                 db_helper.add_player(playername, (Int64)playerid);
@@ -659,6 +674,67 @@ namespace Mabinogi_Damage_tracker
                 Debug.WriteLine("couldnt parse a name packet saving packet");
                 captureFileWriter.Write(packet.PayloadData);
             }
+        }
+
+        private static List<string> ExtractLengthPrefixedUtf8Strings(byte[] payloadData, int startInclusive, int endExclusive)
+        {
+            List<string> results = new List<string>();
+
+            if (payloadData == null || startInclusive < 0 || endExclusive > payloadData.Length || startInclusive >= endExclusive)
+            {
+                return results;
+            }
+
+            // scan: 06 00 <len> <utf8 bytes> 00
+            for (int i = startInclusive; i + 3 < endExclusive; i++)
+            {
+                if (payloadData[i] != 0x06 || payloadData[i + 1] != 0x00)
+                {
+                    continue;
+                }
+
+                int len = payloadData[i + 2];
+                if (len < 1 || len > 200)
+                {
+                    continue;
+                }
+
+                int textStart = i + 3;
+                int textEnd = textStart + len;
+
+                // ensure bytes and null terminator are within sub-packet bounds
+                if (textEnd >= endExclusive)
+                {
+                    continue;
+                }
+
+                if (payloadData[textEnd] != 0x00)
+                {
+                    continue;
+                }
+
+                try
+                {
+                    string value = new UTF8Encoding(false, true).GetString(payloadData, textStart, len);
+                    if (string.IsNullOrWhiteSpace(value))
+                    {
+                        continue;
+                    }
+
+                    if (value.Any(char.IsControl))
+                    {
+                        continue;
+                    }
+
+                    results.Add(value);
+                }
+                catch (DecoderFallbackException)
+                {
+                    // invalid UTF-8 should be ignored
+                }
+            }
+
+            return results;
         }
 
         private static void read_variable_length_uint64(Span<byte> bytes, out UInt64 parsedint, out int bytesread)
@@ -697,4 +773,3 @@ namespace Mabinogi_Damage_tracker
 
     }
 }
-
