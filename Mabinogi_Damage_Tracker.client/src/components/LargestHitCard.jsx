@@ -4,6 +4,7 @@ import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography'
 import StarIcon from '@mui/icons-material/Star';
 import DotsMobileStepper from './DotsMobileStepper';
+import { useTranslation } from 'react-i18next';
 
 function formatLargeNumber(num) {
     if (num === null || num === undefined || isNaN(num)) return '0';
@@ -27,6 +28,7 @@ function formatLargeNumber(num) {
 }
 
 export default function LargestHitCard({ largestDamageInstances, setGraphLargestDamageInstance }) {
+    const { t } = useTranslation();
     const [currentlargestDamageInstance, setCurrentlargestDamageInstance] = useState(largestDamageInstances[0]);
     const [activeStep, setActiveStep] = useState(0);
 
@@ -40,7 +42,7 @@ export default function LargestHitCard({ largestDamageInstances, setGraphLargest
             <StarIcon fontSize="large" sx={{ marginBottom: "8%" }} />
             <Box sx={{ display: "flex", flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, sm: 4, md: 8 } }}>
                 <Box sx={{ gap: "10px", flexGrow: "2" }}>
-                    <Typography variant="subtitle1">Largest Hit by {currentlargestDamageInstance.player_name}</Typography>
+                    <Typography variant="subtitle1">{t('analytics.largestHitBy', { player: currentlargestDamageInstance.player_name })}</Typography>
                     <Typography variant="h3">{formatLargeNumber(currentlargestDamageInstance.damage)}</Typography>
                 </Box>
             </Box>
@@ -50,4 +52,3 @@ export default function LargestHitCard({ largestDamageInstances, setGraphLargest
         </Paper>
     );
 }
-

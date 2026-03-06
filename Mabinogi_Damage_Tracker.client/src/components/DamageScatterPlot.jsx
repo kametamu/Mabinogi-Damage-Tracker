@@ -5,6 +5,7 @@ import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Divider from '@mui/material/Divider';
 import Paper from '@mui/material/Paper';
+import { useTranslation } from 'react-i18next';
 
 const customColors = [
     "#8684BF",
@@ -109,10 +110,11 @@ function CustomTooltip() {
 }
 
 export default function DamageScatterPlot({ series }) {
+    const { t } = useTranslation();
 
     return (
         <Paper square={false} sx={{ padding: "6px", height: "100%" }}>
-            <Typography variant="h4" sx={{ marginBottom: "10px" }}>Damage Scatter Plot</Typography>
+            <Typography variant="h4" sx={{ marginBottom: "10px" }}>{t('analytics.damageScatterPlot')}</Typography>
             <ScatterChart
                 height={400}
                 series={series}
