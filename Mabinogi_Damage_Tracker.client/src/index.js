@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import './index.css';
+import './localization/i18n';
 import reportWebVitals from './reportWebVitals';
 import Dashboard from './Dashboard';
 
