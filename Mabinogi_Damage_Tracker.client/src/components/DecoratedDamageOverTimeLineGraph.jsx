@@ -95,6 +95,7 @@ function DamageLabels({ largestDamageInstance }) {
 }
 
 function SingleSeriesExtremaLabels({ series, largestDamageInstance }) {
+    const { t } = useTranslation();
     const xAxis = useXAxis();
     const xDataIndex = new Date(largestDamageInstance.unix_timestamp * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
     const index = xAxis.data.findIndex(element => element === xDataIndex)
@@ -109,6 +110,7 @@ function SingleSeriesExtremaLabels({ series, largestDamageInstance }) {
                 y={point}
                 placement="above"
                 color={series.color}
+                label={t('common.largestHit')}
             />
         </React.Fragment>
     );
@@ -143,7 +145,7 @@ function PointConnector({ x, y, labelLeft, labelTop, color }) {
     );
 }
 
-function PointLabel({ x, y, placement, color }) {
+function PointLabel({ x, y, placement, color, label }) {
     const xAxisScale = useXScale();
     const yAxisScale = useYScale();
 
@@ -170,7 +172,7 @@ function PointLabel({ x, y, placement, color }) {
                     px: 1,
                 }}
             >
-                <Typography variant="caption">{t('common.largestHit')}</Typography>
+                <Typography variant="caption">{label}</Typography>
             </Paper>
         </React.Fragment>
     );
