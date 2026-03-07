@@ -1,3 +1,6 @@
+🇯🇵 日本語ドキュメント  
+→ README_JA.md
+
 # Dear Nexon Devs / Community Managers / Game Masters and Decision Makers,  
 
 We’ve open sourced this project’s code base so you can review the functionality of the project, and hopefully publicly approve the scope and methods in which this code base works. Most notably that this application is a read-only parser. We do not modify, manipulate, emulate, or in any other way touch data that interfaces with Mabinogi’s operations.
