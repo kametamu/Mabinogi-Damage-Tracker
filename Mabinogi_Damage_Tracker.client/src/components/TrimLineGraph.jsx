@@ -12,6 +12,7 @@ import {
 import { Paper, Typography, TextField, FormControl, Button, Divider, Box, Snackbar, Alert } from '@mui/material';
 import { useTheme } from '@mui/material/styles';
 import ContentCutIcon from '@mui/icons-material/ContentCut';
+import { useTranslation } from 'react-i18next';
 
 const customColors = [
     "#8684BF",
@@ -181,6 +182,7 @@ function CustomBrushOverlay({ onBrushChange }) {
 }
 
 function ChartFormController({ range, rangeUt }) {
+    const { t } = useTranslation();
     const [name, setName] = useState("");
     const [open, setOpen] = useState(false);
     const [severity, setSeverity] = useState("success");
@@ -229,15 +231,15 @@ function ChartFormController({ range, rangeUt }) {
 
     return (
         <FormControl sx={{ width: 300, gap: 2 }}>
-            <TextField id="outlined-basic" label="Name" variant="standard" value={name} onChange={(e) => setName(e.target.value)} />
-            <Typography>Start Time: {range[0]}</Typography>
-            <Typography>End Time: {range[1]}</Typography>
-            <Typography>Duration: {duration} (s)</Typography>
+            <TextField id="outlined-basic" label={t('recordings.name')} variant="standard" value={name} onChange={(e) => setName(e.target.value)} />
+            <Typography>{t('recordings.startTime')}: {range[0]}</Typography>
+            <Typography>{t('recordings.endTime')}: {range[1]}</Typography>
+            <Typography>{t('recordings.duration')}: {duration} (s)</Typography>
             <Button variant="outlined" startIcon={<ContentCutIcon />} disabled={(name === "" || duration === 0) ? true : false} onClick={handleButtonClick}>
-                Trim Recording
+                {t('recordings.trimRecording')}
             </Button>
             <Divider />
-            <Typography variant="caption">Trimmed recordings are viewable as new entries in recordings table</Typography>
+            <Typography variant="caption">{t('recordings.trimDescription')}</Typography>
 
             {/* Feedback component */}
             <Snackbar open={open} autoHideDuration={6000} onClose={handleCloseSnackbar}>
@@ -255,11 +257,12 @@ function ChartFormController({ range, rangeUt }) {
 }
 
 export default function TrimLineGraph({ chartData, start_ut, end_ut }) {
+    const { t } = useTranslation();
     // Chart Utility
     const series = 
         [{
             id: "trim",
-            label: "Total Damage",
+            label: t('common.totalDamage'),
             type: 'line',
             data: chartData || [],
             area: true,
@@ -306,7 +309,7 @@ export default function TrimLineGraph({ chartData, start_ut, end_ut }) {
     return (
         <Paper square={false} sx={{ padding: "32px", gap: "20px", width: "100%", height: "100%", display: 'flex' }}>
             <Box sx={{ width: '100%' }}>
-                <Typography variant="h4" sx={{ marginBottom: "20px" }}>Trim Recording</Typography>
+                <Typography variant="h4" sx={{ marginBottom: "20px" }}>{t('recordings.trimRecording')}</Typography>
                 <ChartDataProvider
                     height={300}
                     series={series}

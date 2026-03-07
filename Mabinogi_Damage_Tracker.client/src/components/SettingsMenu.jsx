@@ -1,5 +1,6 @@
 import * as React from 'react';
 import { useState, useEffect, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
@@ -16,6 +17,7 @@ import Snackbar from '@mui/material/Snackbar';
 import Button from '@mui/material/Button';
 
 export default function SettingsMenu() {
+    const { t, i18n } = useTranslation();
     const { mode, setMode } = useContext(AppContext);
     const { pollingRate, setPollingRate } = useContext(AppContext);
     const { burstCount, setBurstCount } = useContext(AppContext);
@@ -51,6 +53,12 @@ export default function SettingsMenu() {
         setThemeChecked(event.target.checked);
     };
 
+    const handleLanguageChange = (event) => {
+        const selectedLanguage = event.target.value;
+        i18n.changeLanguage(selectedLanguage);
+        localStorage.setItem('lang', selectedLanguage);
+    };
+
     const handleAdapterChange = async (event) => {
         if (event.target.value === undefined) return;
 
@@ -78,20 +86,40 @@ export default function SettingsMenu() {
         <Box sx={{ display: 'flex', flexDirection: 'column', width: "40vw", gap: '40px' }}>
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Color Theme</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the color mode for the application to light or dark mode</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('common.language')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.languageLabel')}</Typography>
+                </Box>
+                <FormControl sx={{ m: 1, minWidth: 180 }}>
+                    <InputLabel id="language-selector-label">{t('common.language')}</InputLabel>
+                    <Select
+                        labelId="language-selector-label"
+                        id="language-selector"
+                        value={i18n.language.startsWith('ja') ? 'ja' : 'en'}
+                        onChange={handleLanguageChange}
+                        label={t('common.language')}
+                    >
+                        <MenuItem value="en">{t('common.english')}</MenuItem>
+                        <MenuItem value="ja">{t('common.japanese')}</MenuItem>
+                    </Select>
+                </FormControl>
+            </Box>
+            <Divider />
+            <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Box>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.colorTheme')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.colorThemeDescription')}</Typography>
                 </Box>
                 <Stack direction="row" spacing={1} sx={{ alignItems: 'center', grow: 2, alignSelf: 'flex-end' }}>
-                    <Typography>Light</Typography>
+                    <Typography>{t('common.light')}</Typography>
                     <Switch checked={themeChecked} onChange={handleThemeChange} />
-                    <Typography>Dark</Typography>
+                    <Typography>{t('common.dark')}</Typography>
                 </Stack>
             </Box>
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Number of Burst</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the number of unique damage burst to view in the analytics page.</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.numberOfBurst')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.numberOfBurstDescription')}</Typography>
                 </Box>
                 <NumberField label="Number Field" min={1} max={16}
                     value={burstCount}
@@ -101,8 +129,8 @@ export default function SettingsMenu() {
             </Box>
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Number of Largest Hits</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the number of unique single largest damage instances to view in the analytics page.</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.numberOfLargestHits')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.numberOfLargestHitsDescription')}</Typography>
                 </Box>
                 <NumberField label="Number Field" min={1} max={16}
                     value={largestDamageInstanceCount}
@@ -113,8 +141,8 @@ export default function SettingsMenu() {
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Polling Rate</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the interval for receving data while recording.</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.pollingRate')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.pollingRateDescription')}</Typography>
                 </Box>
                 <NumberField label="Number Field" min={10} max={10000} units="ms"
                     value={pollingRate}
@@ -126,34 +154,34 @@ export default function SettingsMenu() {
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Select Adapter</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Sets the adapter for the parser to use.</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.selectAdapter')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.selectAdapterDescription')}</Typography>
                 </Box>
                 <FormControl sx={{ m: 1, minWidth: 180 }}>
-                    <InputLabel id="adapter-InputLabel">Adapter</InputLabel>
+                    <InputLabel id="adapter-InputLabel">{t('settings.adapter')}</InputLabel>
                     <Select
                         labelId="adapter-selector"
                         id="adapter-selector"
                         value={selectedAdapter}
                         onChange={handleAdapterChange}
                         sx={{ minWidth: 100 }}
-                        label="Adapter"
+                        label={t('settings.adapter')}
                     >
                         {adapters.length ?
-                            adapters.map((item) => <MenuItem value={item}>{item}</MenuItem>)
+                            adapters.map((item) => <MenuItem key={item} value={item}>{item}</MenuItem>)
                             :
                             (<Box sx={{ display: 'flex', justifyContent: 'center' }}>
-                                <Typography>No Adapters Available</Typography>
+                                <Typography>{t('settings.noAdaptersAvailable')}</Typography>
                             </Box>)}
                     </Select>
-                    {selectedAdapter === "" ? <Typography variant="caption" color='warning'>No Adapter Saved</Typography> : <></>}
+                    {selectedAdapter === "" ? <Typography variant="caption" color='warning'>{t('settings.noAdapterSaved')}</Typography> : <></>}
                 </FormControl>
             </Box>
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
                 <Box>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>Restart Parse</Typography>
-                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>Restarts the parser service</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.restartParse')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.restartDescription')}</Typography>
                 </Box>
                 <Button color="error" variant="contained"
                     onClick={async () => {
@@ -168,7 +196,7 @@ export default function SettingsMenu() {
                         }
                     }}
                     >
-                Restart</Button>
+                {t('settings.restart')}</Button>
             </Box>
 
             {/* Feedback component */}

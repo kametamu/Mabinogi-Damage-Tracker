@@ -4,6 +4,7 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
+import { useTranslation } from 'react-i18next';
 
 function formatLargeNumber(num) {
     if (num === null || num === undefined || isNaN(num)) return '0';
@@ -27,6 +28,7 @@ function formatLargeNumber(num) {
 }
 
 export default function DamageCard({ chartData, totalDamage }) {
+    const { t } = useTranslation();
     
 
     return (
@@ -34,7 +36,7 @@ export default function DamageCard({ chartData, totalDamage }) {
             <AutoAwesomeIcon fontSize="large" sx={{ marginBottom: "1%" }} />
             <Box sx={{ display: "flex", flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, sm: 4, md: 8 } }}>
                 <Box sx={{ gap: "10px", flexGrow: "2"}}>
-                    <Typography variant="subtitle1">Total Damage</Typography>
+                    <Typography variant="subtitle1">{t('common.totalDamage')}</Typography>
                     <Typography variant="h3">{formatLargeNumber(totalDamage)}</Typography>
                 </Box>
                 <SparkLineChart
@@ -47,4 +49,3 @@ export default function DamageCard({ chartData, totalDamage }) {
         </Paper>
     );
 }
-
