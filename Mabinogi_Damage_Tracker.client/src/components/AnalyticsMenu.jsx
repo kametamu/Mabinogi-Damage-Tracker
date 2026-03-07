@@ -45,7 +45,7 @@ function transformDataLineChartDamage(apiData, language) {
 }
 
 export default function AnalyticsMenu({ start_ut, end_ut }) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { burstCount, largestDamageInstanceCount } = useContext(AppContext)
     const [damageOverTimeData, setDamageOverTimeData] = useState([])
     const [damagePieChartData, setDamagePieChartData] = useState([])
