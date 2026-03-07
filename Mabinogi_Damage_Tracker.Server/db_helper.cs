@@ -260,6 +260,7 @@ namespace Mabinogi_Damage_tracker
 
         public static int Get_SumHeals_BetweenUT(int start_ut, int end_ut)
         {
+            int query_result = 0;
             try
             {
                 using (SqliteConnection connection = new SqliteConnection(db_connection))

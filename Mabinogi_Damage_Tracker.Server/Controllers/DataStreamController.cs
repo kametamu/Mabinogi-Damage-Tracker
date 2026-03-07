@@ -27,9 +27,9 @@ public class DataStreamController : ControllerBase
     [HttpGet("DamagePacketStream")]
     public async Task DamagePacketStream()
     {
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["Content-Type"] = "application/json";
-        Response.Headers["Connection"] = "keep-alive";
+        Response.Headers.Add("Cache-Control", "no-cache");
+        Response.Headers.Add("Content-Type", "application/json");
+        Response.Headers.Add("Connection", "keep-alive");
 
         Response.StatusCode = 200;
 
@@ -51,9 +51,9 @@ public class DataStreamController : ControllerBase
     [HttpGet("DamageOverTime")]
     public async Task StreamDoT()
     {
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["Content-Type"] = "application/json";
-        Response.Headers["Connection"] = "keep-alive";
+        Response.Headers.Add("Cache-Control", "no-cache");
+        Response.Headers.Add("Content-Type", "application/json");
+        Response.Headers.Add("Connection", "keep-alive");
 
         Response.StatusCode = 200;
 
@@ -75,9 +75,9 @@ public class DataStreamController : ControllerBase
     [HttpGet("TotalDamage")]
     public async Task StreamTotalDamage()
     {
-        Response.Headers["Cache-Control"] = "no-cache";
-        Response.Headers["Content-Type"] = "application/json";
-        Response.Headers["Connection"] = "keep-alive";
+        Response.Headers.Add("Cache-Control", "no-cache");
+        Response.Headers.Add("Content-Type", "application/json");
+        Response.Headers.Add("Connection", "keep-alive");
 
         Response.StatusCode = 200;
 

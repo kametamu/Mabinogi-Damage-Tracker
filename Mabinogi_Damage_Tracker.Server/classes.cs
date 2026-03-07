@@ -17,7 +17,7 @@ namespace Mabinogi_Damage_Tracker
         public UInt64 enemy_id{ get; set; }
         public SkillId skillid { get; set; }
         public SkillId subskillid { get; set; }
-        public string player_name { get; set; } = string.Empty;
+        public string player_name { get; set; }
 
         public Damage(float dmg, float wnd, uint mana_dmg, UInt64 plyr_id, UInt64 enmy_id, SkillId skill, SkillId subskill, string plyr_name = "")
         {
@@ -44,18 +44,18 @@ namespace Mabinogi_Damage_Tracker
         }
     }
 
-    public class Healing
+    public class healing
     {
         public UInt64 caster {  get; set; }
         public UInt64 recepient { get; set; }
         public UInt32 heal {  get; set; }
-        public Healing (UInt64 Caster, UInt64 Recepient, UInt32 Heal)
+        public healing (UInt64 Caster, UInt64 Recepient, UInt32 Heal)
         {
             caster = Caster;
             recepient = Recepient;
             heal = Heal;
         }
-        public Healing()
+        public healing()
         { }
     }
 
