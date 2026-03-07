@@ -16,9 +16,9 @@ public class LogsController : ControllerBase
     [HttpGet("stream")]
     public async Task StreamLogs()
     {
-        Response.Headers.Add("Cache-Control", "no-cache");
-        Response.Headers.Add("Content-Type", "text/event-stream");
-        Response.Headers.Add("Connection", "keep-alive");
+        Response.Headers["Cache-Control"] = "no-cache";
+        Response.Headers["Content-Type"] = "text/event-stream";
+        Response.Headers["Connection"] = "keep-alive";
 
         Response.StatusCode = 200;
 

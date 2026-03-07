@@ -9,7 +9,6 @@ namespace Mabinogi_Damage_tracker.Controllers
     public class HomeController : Controller
     {
         Damage_View damage_view = new Damage_View();
-        private string last_dt_dps = "";
         private readonly ILogger<HomeController> _logger;
 
 

@@ -23,7 +23,7 @@ namespace Mabinogi_Damage_tracker
         static bool savenextpacket = false;
         static BindingList<Name> character_names = new BindingList<Name>();
         static UInt64 last_healer = 0;
-        public static string adapter_description;
+        public static string adapter_description = string.Empty;
         public static List<string> adapters = new List<string>();
         
         
@@ -34,7 +34,7 @@ namespace Mabinogi_Damage_tracker
         #if DEBUG_FILE
             static CaptureFileReaderDevice device = new CaptureFileReaderDevice("C:/packets/full glenn vhm run.pcapng");
         #endif
-        static Thread reader;
+        static Thread reader = null!;
 
 
         //i am unconvinced this is the best way to handle the thread managing the event handler
@@ -248,8 +248,7 @@ namespace Mabinogi_Damage_tracker
 
             int cursor = 0;
 
-            bool previous_healing_packet = false;
-            List<healing> healing_packs = new List<healing>();
+            List<Healing> healing_packs = new List<Healing>();
             
 
             while (cursor + 10 < tcp.PayloadData.Length)
@@ -309,7 +308,7 @@ namespace Mabinogi_Damage_tracker
             return;
         }
 
-        private static void pack_healing(TcpPacket tcp, int cursor, ref List<healing> healing_packs, int sub_packet_length, int begining_of_packet_cursor)
+        private static void pack_healing(TcpPacket tcp, int cursor, ref List<Healing> healing_packs, int sub_packet_length, int begining_of_packet_cursor)
         {
             #region healing packet notes
             //healing packets have 2 back to back opcodes the firstpacket has plain text 'healing'
@@ -336,7 +335,7 @@ namespace Mabinogi_Damage_tracker
             try
             {
                 byte heal_type = tcp.PayloadData[cursor + sizeof(UInt64)];
-                healing healpack = new healing();
+                Healing healpack = new Healing();
 
                 switch (heal_type)
                 {
@@ -358,7 +357,7 @@ namespace Mabinogi_Damage_tracker
                         while (cursor < sub_packet_length + begining_of_packet_cursor)
                         {
                             if (tcp.PayloadData[cursor] != 4) { break; }
-                            healing multiheal = new healing();
+                            Healing multiheal = new Healing();
                             multiheal.recepient = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor + 1));
                             multiheal.caster = last_healer;
                             healing_packs.Add(multiheal);
@@ -603,7 +602,7 @@ namespace Mabinogi_Damage_tracker
                     cursor = subsub_pack_start_cursor + (int)subsub_pack_len;
                 }
             }
-            catch (ArgumentOutOfRangeException ex)
+            catch (ArgumentOutOfRangeException)
             {
                 Debug.WriteLine("Cursor out of range, saving this packet and the next. cursor at {0}, packet length {1}, sub packet length {2}, sub sub packet length {3}", cursor, tcp.PayloadData.Length, sub_packet_length, _subsub_pack_len);
                 cursor = (int)sub_packet_length + begining_of_packet_cursor;
