@@ -39,7 +39,7 @@ function transformDataLineChartDamage(apiData, language) {
 }
 
 export default function LiveMenu() {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { pollingRate } = useContext(AppContext);
     const [recording, setRecording] = useState(false);
     const [damagePieChartData, setDamagePieChartData] = useState([]); // for the piechart
