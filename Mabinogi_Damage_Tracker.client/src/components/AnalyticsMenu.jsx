@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext'
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
@@ -14,6 +15,7 @@ import DamageScatterPlot from './DamageScatterPlot';
 import LargestHitCard from './LargestHitCard';
 import BurstCard from './BurstCard';
 import HealingCard from './HealingCard';
+import { getLocalizedSkillName } from '../i18n/skills';
 
 function formatTimeStamp(ut) {
     return new Date((ut) * 1000).toLocaleTimeString(
@@ -22,18 +24,20 @@ function formatTimeStamp(ut) {
     );
 }
 
-function transformDataPieDamage(apiData) {
+function transformDataPieDamage(apiData, language) {
     return apiData.map(item => ({
-        label: item.label,
+        skillId: item.skill_id ?? item.skillId ?? item.id,
+        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
         value: item.data.at(-1)
     }));
 }
 
-function transformDataLineChartDamage(apiData) {
+function transformDataLineChartDamage(apiData, language) {
     return apiData.map(item => ({
         type: "line",
         id: item.id,
-        label: item.label,
+        skillId: item.skill_id ?? item.skillId ?? item.id,
+        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
         data: item.data,
         area: false,
         showMark: false,
@@ -41,6 +45,7 @@ function transformDataLineChartDamage(apiData) {
 }
 
 export default function AnalyticsMenu({ start_ut, end_ut }) {
+    const { t, i18n } = useTranslation();
     const { burstCount, largestDamageInstanceCount } = useContext(AppContext)
     const [damageOverTimeData, setDamageOverTimeData] = useState([])
     const [damagePieChartData, setDamagePieChartData] = useState([])
@@ -131,7 +136,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     }
                 });
 
-                const newLineChartData = transformDataLineChartDamage(sortedData)
+                const newLineChartData = transformDataLineChartDamage(sortedData, i18n.language)
                 setDamageOverTimeData(newLineChartData);
 
                 const newCombinedDamageOverTimeData = newLineChartData[0]?.data?.map((_, index) =>
@@ -140,7 +145,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
                 setCombinedDamageOverTimeData(newCombinedDamageOverTimeData)
 
-                const newPieChartData = transformDataPieDamage(sortedData)
+                const newPieChartData = transformDataPieDamage(sortedData, i18n.language)
                 setDamagePieChartData(newPieChartData);
 
                 const newTotalDamage = newCombinedDamageOverTimeData.at(-1);
@@ -201,11 +206,11 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             })
         
         getDamageBands()
-    }, [start_ut, end_ut, burstCount, largestDamageInstanceCount]);
+    }, [start_ut, end_ut, burstCount, largestDamageInstanceCount, i18n.language]);
     
     return (
         <Box>
-            <Typography variant="h2" sx={{ marginBottom: "8px"}}>Analytics</Typography>
+            <Typography variant="h2" sx={{ marginBottom: "8px"}}>{t('analytics.title')}</Typography>
             <Grid container spacing={{ xs: 1, md: 2 }} alignItems="stretch" sx={{ flexGrow: 1 }}>
                 { /* Total Damage Card */}
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} sx={{ height: '220px' }} >

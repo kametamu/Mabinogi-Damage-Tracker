@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
 import Typography from '@mui/material/Typography'
 import AccessTimeIcon from '@mui/icons-material/AccessTime';
+import { useTranslation } from 'react-i18next';
 
 function formatTimeLength(length_ut) {
     if (length_ut === null || length_ut === undefined || length_ut < 0 || isNaN(length_ut)) return '0'
@@ -20,6 +21,7 @@ function formatTimeLength(length_ut) {
 
 
 export default function TimeCard({ length_ut }) {
+    const { t } = useTranslation();
     
 
     return (
@@ -27,11 +29,10 @@ export default function TimeCard({ length_ut }) {
             <AccessTimeIcon fontSize="large" sx={{ marginBottom: "5%"}} />
             <Box sx={{ display: "flex", flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, sm: 4, md: 8 } }}>
                 <Box sx={{ gap: "0px", flexGrow: "1" }}>
-                    <Typography variant="subtitle1">Recording Length</Typography>
+                    <Typography variant="subtitle1">{t('recordings.recordingLength')}</Typography>
                     <Typography variant="h3">{formatTimeLength(length_ut)}</Typography>
                 </Box>
             </Box>
         </Paper>
     );
 }
-

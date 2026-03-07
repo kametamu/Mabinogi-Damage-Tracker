@@ -1,4 +1,5 @@
 import { useState, useEffect, useContext } from 'react'
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext';
 import { DataGrid } from '@mui/x-data-grid';
 import Paper from '@mui/material/Paper';
@@ -25,6 +26,7 @@ function transformRowData(rowData) {
 }
 
 function NameEditorCell(props) {
+    const { t } = useTranslation();
     const { params } = props;
     const [value, setValue] = useState(params.value);
     const [loading, setLoading] = useState(false);
@@ -77,7 +79,7 @@ function NameEditorCell(props) {
                     <CircularProgress enableTrackSlot size="30px" /> :
                     <>
                         {(status === "passive") &&
-                        <Tooltip title="Rename" disableInteractive>
+                        <Tooltip title={t('recordings.rename')} disableInteractive>
                             <KeyboardDoubleArrowRightIcon color="primary" />
                         </Tooltip>
                         }
@@ -91,16 +93,17 @@ function NameEditorCell(props) {
 }
 
 export default function RecordingsMenu() {
+    const { t } = useTranslation();
     const { setMenu } = useContext(AppContext)
     const [rows, setRows] = useState([]);
     const [selected, setSelected] = useState({ ids: 0 });
 
     const columns = [
-        { field: 'id', headerName: 'ID', type: 'int', width: 75, flex: 0 },
-        { field: 'name', headerName: 'Name', type: 'string', width: 220, flex: 0, renderCell: (params) => <NameEditorCell params={params} /> },
-        { field: 'date', headerName: 'Date', type: 'date', width: 130, flex: 0 },
+        { field: 'id', headerName: t('recordings.id'), type: 'int', width: 75, flex: 0 },
+        { field: 'name', headerName: t('recordings.name'), type: 'string', width: 220, flex: 0, renderCell: (params) => <NameEditorCell params={params} /> },
+        { field: 'date', headerName: t('recordings.date'), type: 'date', width: 130, flex: 0 },
         {
-            field: 'start_ut', headerName: 'Start Time', type: 'string', width: 130, flex: 0,
+            field: 'start_ut', headerName: t('recordings.startTime'), type: 'string', width: 130, flex: 0,
             renderCell: (params) => (
                 <Box sx={{
                     width: '100%',
@@ -113,7 +116,7 @@ export default function RecordingsMenu() {
             )
         },
         {
-            field: 'end_ut', headerName: 'End Time', type: 'string', width: 130, flex: 0,
+            field: 'end_ut', headerName: t('recordings.endTime'), type: 'string', width: 130, flex: 0,
             renderCell: (params) => (
                 <Box sx={{
                     width: '100%',
@@ -125,9 +128,9 @@ export default function RecordingsMenu() {
                 </Box>
             )
         },
-        { field: 'duration', headerName: 'Duration (s)', type: 'int', width: 130, flex: 0 },
-        { field: 'view', headerName: 'View', width: 80, flex: 0, renderCell: (params) => (
-            <Tooltip title="Open for details" disableInteractive>
+        { field: 'duration', headerName: t('recordings.durationSeconds'), type: 'int', width: 130, flex: 0 },
+        { field: 'view', headerName: t('recordings.view'), width: 80, flex: 0, renderCell: (params) => (
+            <Tooltip title={t('recordings.openForDetails')} disableInteractive>
                 <IconButton
                     variant="text"
                     color="primary"
@@ -171,7 +174,7 @@ export default function RecordingsMenu() {
 
     return (
         <Box>
-            <Typography variant="h2" sx={{ marginBottom: "24px" }}>Recordings</Typography>
+            <Typography variant="h2" sx={{ marginBottom: "24px" }}>{t('recordings.title')}</Typography>
             <Paper sx={{ height: "100%", width: '100%', overflow: 'auto', display: 'flex', flexDirection: 'column' }}>
                <DataGrid
                     rows={rows}
@@ -202,7 +205,7 @@ export default function RecordingsMenu() {
                         disabled={selected.ids.size === 0}
                         sx={{ width: 200, margin: 1 }}
                     >
-                        Delete Selected {selected.ids.size > 0 ? `(${selected.ids.size})`:""}
+                        {t('recordings.deleteSelected')} {selected.ids.size > 0 ? `(${selected.ids.size})`:""}
                     </Button>
                 </Box>
                 
