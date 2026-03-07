@@ -1,0 +1,81 @@
+{
+  "common": {
+    "language": "言語",
+    "english": "English",
+    "japanese": "日本語",
+    "light": "ライト",
+    "dark": "ダーク",
+    "totalDamage": "合計ダメージ",
+    "numberOfPlayers": "プレイヤー数",
+    "damageOverTime": "ダメージ推移",
+    "largestHit": "最大ダメージ"
+  },
+  "sideMenu": {
+    "home": "ホーム",
+    "live": "リアルタイム",
+    "players": "プレイヤー",
+    "recordings": "戦闘履歴",
+    "settings": "設定",
+    "about": "概要",
+    "feedback": "フィードバック"
+  },
+  "settings": {
+    "languageLabel": "言語",
+    "colorTheme": "カラーテーマ",
+    "colorThemeDescription": "アプリケーションのカラーモードをライトまたはダークに設定します",
+    "numberOfBurst": "バースト数",
+    "numberOfBurstDescription": "分析ページに表示する最大ダメージ件数を設定します。",
+    "numberOfLargestHits": "最大ダメージ数",
+    "numberOfLargestHitsDescription": "分析ページに表示する単発最大ダメージの件数を設定します。",
+    "pollingRate": "ポーリング間隔",
+    "pollingRateDescription": "記録中にデータを受信する間隔を設定します。",
+    "selectAdapter": "アダプター選択",
+    "selectAdapterDescription": "パーサーで使用するアダプターを設定します。",
+    "adapter": "アダプター",
+    "noAdaptersAvailable": "利用可能なアダプターがありません",
+    "noAdapterSaved": "保存済みアダプターがありません",
+    "restartParse": "解析の再起動",
+    "restartDescription": "パーサーサービスを再起動します",
+    "restart": "再起動"
+  },
+  "live": {
+    "title": "リアルタイム",
+    "startRecording": "記録開始",
+    "endRecording": "記録終了",
+    "eventLogs": "戦闘ログ",
+    "damageMeter": "DPSメーター",
+    "maxDps": "最大DPS",
+    "dps": "現在DPS",
+    "averageDps": "平均DPS"
+  },
+  "analytics": {
+    "title": "戦闘分析",
+    "largestHitBy": "{{player}} の最大ダメージ",
+    "largestBurst": "{{label}} バースト",
+    "startedAt": "開始時刻 ：{{time}}",
+    "damageScatterPlot": "ダメージ分布",
+    "damageBands": "ダメージ帯"
+  },
+  "players": {
+    "title": "プレイヤー",
+    "playerId": "プレイヤーID",
+    "playerName": "プレイヤー名"
+  },
+  "recordings": {
+    "title": "戦闘履歴",
+    "id": "ID",
+    "name": "ログ名",
+    "date": "日付",
+    "startTime": "開始時刻",
+    "endTime": "終了時刻",
+    "duration": "戦闘時間",
+    "durationSeconds": "時間 (秒)",
+    "view": "表示",
+    "openForDetails": "詳細を開く",
+    "deleteSelected": "選択を削除",
+    "rename": "名前変更",
+    "recordingLength": "戦闘時間",
+    "trimRecording": "ログをトリミング",
+    "trimDescription": "トリミングした戦闘履歴は戦闘履歴テーブルに新しいエントリーとして表示されます"
+  }
+}

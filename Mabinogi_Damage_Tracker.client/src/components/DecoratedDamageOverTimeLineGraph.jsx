@@ -23,6 +23,7 @@ import {
 import MoreVertIcon from '@mui/icons-material/MoreVert';
 import VisibilityIcon from '@mui/icons-material/Visibility';
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff';
+import { useTranslation } from 'react-i18next';
 
 
 const customColors = [
@@ -72,6 +73,7 @@ function formatLargeNumber(num) {
 }
 
 function DamageLabels({ largestDamageInstance }) {
+    const { t } = useTranslation();
     const lineSeries = useLineSeries();
 
     if (!lineSeries) {
@@ -93,6 +95,7 @@ function DamageLabels({ largestDamageInstance }) {
 }
 
 function SingleSeriesExtremaLabels({ series, largestDamageInstance }) {
+    const { t } = useTranslation();
     const xAxis = useXAxis();
     const xDataIndex = new Date(largestDamageInstance.unix_timestamp * 1000).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit', second: '2-digit' })
     const index = xAxis.data.findIndex(element => element === xDataIndex)
@@ -107,6 +110,7 @@ function SingleSeriesExtremaLabels({ series, largestDamageInstance }) {
                 y={point}
                 placement="above"
                 color={series.color}
+                label={t('common.largestHit')}
             />
         </React.Fragment>
     );
@@ -141,7 +145,7 @@ function PointConnector({ x, y, labelLeft, labelTop, color }) {
     );
 }
 
-function PointLabel({ x, y, placement, color }) {
+function PointLabel({ x, y, placement, color, label }) {
     const xAxisScale = useXScale();
     const yAxisScale = useYScale();
 
@@ -168,7 +172,7 @@ function PointLabel({ x, y, placement, color }) {
                     px: 1,
                 }}
             >
-                <Typography variant="caption">Largest Hit</Typography>
+                <Typography variant="caption">{label}</Typography>
             </Paper>
         </React.Fragment>
     );
@@ -252,6 +256,7 @@ function GraphSettings({
     bandsVisible,
     setBandsVisible
 }) {
+    const { t } = useTranslation();
     const [anchorEl, setAnchorEl] = useState(null);
 
     const handleClick = (event) => {
@@ -305,7 +310,7 @@ function GraphSettings({
                         <ListItemIcon>
                             {labelsVisible ? <VisibilityIcon /> : <VisibilityOffIcon />}
                         </ListItemIcon>
-                        <ListItemText primary="Largest Hit" />
+                        <ListItemText primary={t('common.largestHit')} />
                     </ListItemButton>
                     <ListItemButton
                         key={'view_damage_band' }
@@ -314,7 +319,7 @@ function GraphSettings({
                         <ListItemIcon>
                             {bandsVisible ? <VisibilityIcon /> : <VisibilityOffIcon />}
                         </ListItemIcon>
-                        <ListItemText primary="Damage Bands" />
+                        <ListItemText primary={t('analytics.damageBands')} />
                     </ListItemButton>
                 </List>
             </Popover>
@@ -324,6 +329,7 @@ function GraphSettings({
 }
 
 export default function DecoratedDamageOverTimeLineGraph({ chartData, bands, largestDamageInstance, start_ut }) {
+    const { t } = useTranslation();
     const dataLength = chartData[0]?.data?.length || 0;
     const [labelsVisible, setLabelsVisible] = useState(true);
     const [bandsVisible, setBandsVisible] = useState(true);
@@ -331,7 +337,7 @@ export default function DecoratedDamageOverTimeLineGraph({ chartData, bands, lar
     return (
         <Paper square={false} sx={{ padding: "16px", height: "100%" }}>
             <Box sx={{ display: 'flex', width: '100%', justifyContent: 'space-between', alignItems: 'baseline' }}>
-                <Typography variant="h4" sx={{ marginBottom: "20px" }}>Damage Over Time</Typography>
+                <Typography variant="h4" sx={{ marginBottom: "20px" }}>{t('common.damageOverTime')}</Typography>
                 <GraphSettings
                     labelsVisible={labelsVisible}
                     setLabelsVisible={setLabelsVisible}

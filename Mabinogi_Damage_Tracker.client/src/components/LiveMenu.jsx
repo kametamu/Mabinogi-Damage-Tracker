@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useContext } from 'react';
+import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext';
 import Box from '@mui/material/Box';
 import Paper from '@mui/material/Paper';
@@ -11,23 +12,26 @@ import DamangeOverTimeLineGraph from './DamageOverTimeLineGraph';
 import LinearProgress from '@mui/material/LinearProgress';
 import LogStream from './LogStream'
 import PlayerDamageGauge from './PlayerDamageGauge';
+import { getLocalizedSkillName } from '../i18n/skills';
 
 const RecordingButtonStyle = {
     width: '100%',
     height: 125,
 };
 
-function transformDataPieDamage(apiData) {
+function transformDataPieDamage(apiData, language) {
     return apiData.map(item => ({
-        label: item.label,
+        skillId: item.skill_id ?? item.skillId ?? item.id,
+        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
         value: item.data.reduce((sum, d) => sum + d, 0)
     }));
 }
 
-function transformDataLineChartDamage(apiData) {
+function transformDataLineChartDamage(apiData, language) {
     return apiData.map(item => ({
         id: item.id,
-        label: item.label,
+        skillId: item.skill_id ?? item.skillId ?? item.id,
+        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
         data: item.data,
         area: false,
         showMark: false,
@@ -35,6 +39,7 @@ function transformDataLineChartDamage(apiData) {
 }
 
 export default function LiveMenu() {
+    const { t, i18n } = useTranslation();
     const { pollingRate } = useContext(AppContext);
     const [recording, setRecording] = useState(false);
     const [damagePieChartData, setDamagePieChartData] = useState([]); // for the piechart
@@ -61,7 +66,7 @@ export default function LiveMenu() {
                 // ---
                 // Damage Pie Chart
                 // ---
-                const newPieChartData = transformDataPieDamage(data);
+                const newPieChartData = transformDataPieDamage(data, i18n.language);
                 setDamagePieChartData(prev => {
                     const prevMap = new Map(prev.map(item => [item.label, item.value]));
 
@@ -80,7 +85,7 @@ export default function LiveMenu() {
                 // ---
                 // Damage Line Chart
                 // ---
-                const newDoTData = transformDataLineChartDamage(data);
+                const newDoTData = transformDataLineChartDamage(data, i18n.language);
 
                 setDamageOverTimeData(prev => {
                     const prevMap = new Map(prev.map(p => [p.id, { ...p }]));
@@ -173,7 +178,7 @@ export default function LiveMenu() {
         return () => {
             clearInterval(interval)
         };
-    }, [recording, pollingRate]);
+    }, [recording, pollingRate, i18n.language]);
 
     // DPS meter updates
     useEffect(() => {
@@ -233,17 +238,17 @@ export default function LiveMenu() {
 
     return (
         <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2}}>
-            <Typography variant="h2" sx={{ marginBottom: "24px" }}>Live</Typography>
+            <Typography variant="h2" sx={{ marginBottom: "24px" }}>{t('live.title')}</Typography>
             <Paper sx={{ height: "100%", padding: 2}}>
                 <Grid container spacing={2}>
                     <Grid item size={2} sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center' } }>
                         {recording ?
                             <Button sx={RecordingButtonStyle} variant="outlined" color="error" onClick={toggleRecording}>
-                                End Recording
+                                {t('live.endRecording')}
                             </Button>
                             :
                             <Button sx={RecordingButtonStyle} variant="contained" color="error" onClick={toggleRecording}>
-                                Start Recording
+                                {t('live.startRecording')}
                             </Button>
                         }
                     </Grid>

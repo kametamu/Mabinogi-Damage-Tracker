@@ -8,6 +8,7 @@ import {
     useGaugeState,
     gaugeClasses
 } from '@mui/x-charts/Gauge';
+import { useTranslation } from 'react-i18next';
 
 function formatLargeNumber(num) {
     if (num === null || num === undefined || isNaN(num)) return '0';
@@ -55,6 +56,7 @@ function GaugePointer({ }) {
 }
 
 export default function PlayerDamageGauge({ value = 7500, averageDPS }) {
+    const { t } = useTranslation();
     const [valueMax, setValueMax] = useState(0);
 
     useEffect(() => {
@@ -67,7 +69,7 @@ export default function PlayerDamageGauge({ value = 7500, averageDPS }) {
 
     return (
         <Paper square={false} sx={{ padding: "16px", height: "100%", display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-            <Typography variant="h4">Damage Meter</Typography>
+            <Typography variant="h4">{t('live.damageMeter')}</Typography>
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-around' }}>
                 <GaugeContainer
                     width={300}
@@ -91,15 +93,15 @@ export default function PlayerDamageGauge({ value = 7500, averageDPS }) {
                 </GaugeContainer>
                 <Box sx={{ display: 'flex', flexDirection: 'column', justifyContent: 'center', gap: '20px', width: '200px'}}>
                     <Box sx={{display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center'}}>
-                        <Typography>Max DPS</Typography>
+                        <Typography>{t('live.maxDps')}</Typography>
                         <Typography variant="h5">{formatLargeNumber(valueMax)}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography>DPS</Typography>
+                        <Typography>{t('live.dps')}</Typography>
                         <Typography variant="h5">{formatLargeNumber(value)}</Typography>
                     </Box>
                     <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                        <Typography>Average DPS</Typography>
+                        <Typography>{t('live.averageDps')}</Typography>
                         <Typography variant="h5">{formatLargeNumber(averageDPS)}</Typography>
                     </Box>
                 </Box>
