@@ -12,23 +12,26 @@ import DamangeOverTimeLineGraph from './DamageOverTimeLineGraph';
 import LinearProgress from '@mui/material/LinearProgress';
 import LogStream from './LogStream'
 import PlayerDamageGauge from './PlayerDamageGauge';
+import { getLocalizedSkillName } from '../i18n/skills';
 
 const RecordingButtonStyle = {
     width: '100%',
     height: 125,
 };
 
-function transformDataPieDamage(apiData) {
+function transformDataPieDamage(apiData, language) {
     return apiData.map(item => ({
-        label: item.label,
+        skillId: item.skill_id ?? item.skillId ?? item.id,
+        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
         value: item.data.reduce((sum, d) => sum + d, 0)
     }));
 }
 
-function transformDataLineChartDamage(apiData) {
+function transformDataLineChartDamage(apiData, language) {
     return apiData.map(item => ({
         id: item.id,
-        label: item.label,
+        skillId: item.skill_id ?? item.skillId ?? item.id,
+        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
         data: item.data,
         area: false,
         showMark: false,
@@ -63,7 +66,7 @@ export default function LiveMenu() {
                 // ---
                 // Damage Pie Chart
                 // ---
-                const newPieChartData = transformDataPieDamage(data);
+                const newPieChartData = transformDataPieDamage(data, i18n.language);
                 setDamagePieChartData(prev => {
                     const prevMap = new Map(prev.map(item => [item.label, item.value]));
 
@@ -82,7 +85,7 @@ export default function LiveMenu() {
                 // ---
                 // Damage Line Chart
                 // ---
-                const newDoTData = transformDataLineChartDamage(data);
+                const newDoTData = transformDataLineChartDamage(data, i18n.language);
 
                 setDamageOverTimeData(prev => {
                     const prevMap = new Map(prev.map(p => [p.id, { ...p }]));
@@ -175,7 +178,7 @@ export default function LiveMenu() {
         return () => {
             clearInterval(interval)
         };
-    }, [recording, pollingRate]);
+    }, [recording, pollingRate, i18n.language]);
 
     // DPS meter updates
     useEffect(() => {
