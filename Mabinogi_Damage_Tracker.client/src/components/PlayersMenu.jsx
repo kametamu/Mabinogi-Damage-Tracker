@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import { DataGrid } from '@mui/x-data-grid';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
+import { getPlayerDisplayName } from '../utils/playerDisplay';
 
 const paginationModel = { page: 0, pageSize: 20 };
 
@@ -17,11 +18,34 @@ export default function PlayersMenu() {
 
     useEffect(() => {
         fetch(`http://${window.location.hostname}:5004/Home/GetAllPlayers`)
-            .then(response => response.json())
-            .then(data => {
-                setPlayers(data.value)
+            .then(async response => {
+                if (!response.ok) {
+                    return [];
+                }
+
+                try {
+                    const data = await response.json();
+                    return Array.isArray(data?.value) ? data.value : [];
+                } catch {
+                    return [];
+                }
             })
-            .catch(error => console.error('Error:', error));
+            .then(data => {
+                setPlayers(data.map((item, index) => ({
+                    ...item,
+                    id: item.id ?? item.playerId ?? index,
+                    playerName: getPlayerDisplayName({
+                        label: item.label,
+                        name: item.playerName ?? item.name,
+                        id: item.id,
+                        playerId: item.playerId,
+                    }),
+                })));
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                setPlayers([]);
+            });
     }, [])
 
     return (

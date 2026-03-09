@@ -6,6 +6,7 @@ import Typography from '@mui/material/Typography'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome';
 import DotsMobileStepper from './DotsMobileStepper';
 import { useTranslation } from 'react-i18next';
+import { getPlayerDisplayName } from '../utils/playerDisplay';
 
 function formatLargeNumber(num) {
     if (num === null || num === undefined || isNaN(num)) return '0';
@@ -29,15 +30,15 @@ function formatLargeNumber(num) {
 }
 export default function BurstCard({ bands, graphBands, setGraphBands }) {
     const { t } = useTranslation();
-    const cardLabel = bands[0].label
+    const cardLabel = bands[0]?.label
     const [activeStep, setActiveStep] = useState(0);
 
-    const currentBurst = bands[activeStep];
+    const currentBurst = bands[activeStep] ?? {};
 
     useEffect(() => {
         setGraphBands(prev =>
             prev.map(band =>
-                band.label === cardLabel ? bands[activeStep] : band
+                band.label === cardLabel ? (bands[activeStep] ?? band) : band
             )
         );
     }, [activeStep, cardLabel, bands, setGraphBands])
@@ -48,7 +49,7 @@ export default function BurstCard({ bands, graphBands, setGraphBands }) {
             <Box sx={{ display: "flex", flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, sm: 4, md: 8 }}}>
                 <Box sx={{ gap: "5px", flexGrow: "2"}} >
                     <Typography variant="subtitle1">{t('analytics.largestBurst', { label: currentBurst.label })}</Typography>
-                    <Typography variant="h3">{currentBurst.player_name}</Typography>
+                    <Typography variant="h3">{getPlayerDisplayName({ label: currentBurst.player_name, id: currentBurst.player_id ?? currentBurst.playerId })}</Typography>
                     <Typography variant="h3">{formatLargeNumber(currentBurst.damage)}</Typography>
                     <Typography variant="subtitle1">{t('analytics.startedAt', { time: currentBurst.start })}</Typography>
                 </Box>
