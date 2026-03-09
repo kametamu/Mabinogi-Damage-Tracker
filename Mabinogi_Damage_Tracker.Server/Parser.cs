@@ -647,6 +647,8 @@ namespace Mabinogi_Damage_tracker
                 playername = playername.Trim();
                 if (playername.Any(char.IsControl)) { return; }
 
+                if (playername.Length >= 3 && playername.StartsWith("<") && playername.EndsWith(">")) { return; }
+                
                 //character_names.Add(new Name(playername, playerid));
                 db_helper.add_player(playername, (Int64)playerid);
                 LogsController.WriteLog("[PLAYER DISCOVERED]" + playerid.ToString() + " -> " + playername);
