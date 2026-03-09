@@ -16,6 +16,7 @@ import DamageScatterPlot from './DamageScatterPlot';
 import LargestHitCard from './LargestHitCard';
 import BurstCard from './BurstCard';
 import HealingCard from './HealingCard';
+import { getLocalizedSkillName } from '../i18n/skills';
 import { getPlayerDisplayName } from '../utils/playerDisplay';
 
 
@@ -48,20 +49,20 @@ function formatTimeStamp(ut) {
     );
 }
 
-function transformDataPieDamage(apiData) {
+function transformDataPieDamage(apiData, language) {
     return apiData.map(item => ({
         skillId: item.skill_id ?? item.skillId ?? item.id,
-        label: getPlayerLabel(item),
+        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
         value: item.data.at(-1)
     }));
 }
 
-function transformDataLineChartDamage(apiData) {
+function transformDataLineChartDamage(apiData, language) {
     return apiData.map(item => ({
         type: "line",
         id: item.id,
         skillId: item.skill_id ?? item.skillId ?? item.id,
-        label: getPlayerLabel(item),
+        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
         data: item.data,
         area: false,
         showMark: false,
@@ -169,7 +170,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     }
                 });
 
-                const newLineChartData = transformDataLineChartDamage(sortedData)
+                const newLineChartData = transformDataLineChartDamage(sortedData, i18n.language)
                 setDamageOverTimeData(newLineChartData);
 
                 const newCombinedDamageOverTimeData = newLineChartData[0]?.data?.map((_, index) =>
@@ -178,7 +179,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
                 setCombinedDamageOverTimeData(newCombinedDamageOverTimeData)
 
-                const newPieChartData = transformDataPieDamage(sortedData)
+                const newPieChartData = transformDataPieDamage(sortedData, i18n.language)
                 setDamagePieChartData(newPieChartData);
 
                 const newTotalDamage = newCombinedDamageOverTimeData.at(-1);
