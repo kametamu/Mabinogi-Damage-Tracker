@@ -37,11 +37,6 @@ function isFinitePoint(x, y) {
     return Number.isFinite(Number(x)) && Number.isFinite(Number(y));
 }
 
-function isPositiveFiniteNumber(value) {
-    const numericValue = Number(value);
-    return Number.isFinite(numericValue) && numericValue > 0;
-}
-
 async function safeJsonArray(response) {
     if (!response.ok) {
         return [];
@@ -123,7 +118,7 @@ function transformDataLineChartDamage(apiData, language) {
 
             return {
                 type: 'line',
-                id: getPlayerKey(item),
+                id: getPlayerKey(item), // stable key for cross-chart matching
                 skillId: item.skill_id ?? item.skillId ?? item.id,
                 label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
                 data,
@@ -148,7 +143,7 @@ function sanitizeLargestHits(items) {
                 ...item,
                 damage,
                 unix_timestamp,
-                player_key: getPlayerKey(item),
+                player_key: getPlayerKey(item), // propagated for overlay matching
                 player_name: getPlayerDisplayName({
                     label: item.player_label,
                     name: item.player_name,
@@ -175,7 +170,7 @@ function sanitizeBandData(items, label, timeframeSeconds) {
                 label,
                 unix_timestamp: unixTimestamp,
                 damage,
-                player_key: getPlayerKey(item),
+                player_key: getPlayerKey(item), // propagated for overlay matching
                 player_name: getPlayerDisplayName({
                     label: item.player_label,
                     name: item.player_name,
@@ -301,7 +296,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
                 const x = toFiniteNumber(point.unix_timestamp, null);
                 const y = toFiniteNumber(point.damage, null);
-                if (x === null || y === null || !isFinitePoint(x, y) || !isPositiveFiniteNumber(y)) {
+                if (x === null || y === null || !isFinitePoint(x, y) || y <= 0) {
                     return acc;
                 }
 
