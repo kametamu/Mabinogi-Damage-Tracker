@@ -33,6 +33,19 @@ async function safeJsonArray(response) {
     }
 }
 
+async function safeJsonNumber(response, fallback = 0) {
+    if (!response.ok) {
+        return fallback;
+    }
+
+    try {
+        const data = await response.json();
+        return toFiniteNumber(data, fallback);
+    } catch {
+        return fallback;
+    }
+}
+
 function getPlayerDisplayText(item) {
     return getPlayerDisplayName({
         label: item?.player_name ?? item?.playerName ?? item?.label,
@@ -249,18 +262,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             })
 
         fetch(`http://${window.location.hostname}:5004/Home/GetTotalPlayerHealing?start_ut=${start_ut}&end_ut=${end_ut}`)
-            .then(async response => {
-                if (!response.ok) {
-                    return 0;
-                }
-
-                try {
-                    const data = await response.json();
-                    return toFiniteNumber(data, 0);
-                } catch {
-                    return 0;
-                }
-            })
+            .then((response) => safeJsonNumber(response, 0))
             .then(data => {
                 setTotalHealing(data)
             })
