@@ -83,7 +83,7 @@ function DamageLabels({ largestDamageInstance }) {
     return (
         <div>
             {lineSeries.map((series, index) => {
-                if (series.label === largestDamageInstance.player_name)
+                if (String(series.id) === String(largestDamageInstance.player_key))
                     return (< React.Fragment key={`damage_label_${index}`}>
                         <SingleSeriesExtremaLabels series={series} largestDamageInstance={largestDamageInstance} />
                     </React.Fragment>)
@@ -188,7 +188,12 @@ function DPSBands({ bands }) {
     return (
         <g>
             {bands.map((b, index) => {
-                const color = lineSeries.find((series) => series.label === b.player_name).color
+                const matchingSeries = lineSeries.find((series) => String(series.id) === String(b.player_key));
+                if (!matchingSeries?.color) {
+                    return null;
+                }
+
+                const color = matchingSeries.color
                 const xStart = xScale(b.start);
                 const xEnd = xScale(b.end);
                 if (xStart === undefined || xEnd === undefined) {

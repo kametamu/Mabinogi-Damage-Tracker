@@ -118,7 +118,7 @@ function transformDataLineChartDamage(apiData, language) {
 
             return {
                 type: 'line',
-                id: item.id,
+                id: getPlayerKey(item),
                 skillId: item.skill_id ?? item.skillId ?? item.id,
                 label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
                 data,
@@ -143,6 +143,7 @@ function sanitizeLargestHits(items) {
                 ...item,
                 damage,
                 unix_timestamp,
+                player_key: getPlayerKey(item),
                 player_name: getPlayerDisplayName({
                     label: item.player_label,
                     name: item.player_name,
@@ -169,6 +170,7 @@ function sanitizeBandData(items, label, timeframeSeconds) {
                 label,
                 unix_timestamp: unixTimestamp,
                 damage,
+                player_key: getPlayerKey(item),
                 player_name: getPlayerDisplayName({
                     label: item.player_label,
                     name: item.player_name,
@@ -294,7 +296,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
                 const x = toFiniteNumber(point.unix_timestamp, null);
                 const y = toFiniteNumber(point.damage, null);
-                if (x === null || y === null || !isFinitePoint(x, y)) {
+                if (x === null || y === null || y <= 0 || !isFinitePoint(x, y)) {
                     return acc;
                 }
 
