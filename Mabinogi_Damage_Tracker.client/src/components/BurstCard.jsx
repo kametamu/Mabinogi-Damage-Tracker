@@ -49,7 +49,7 @@ export default function BurstCard({ bands, graphBands, setGraphBands }) {
             <Box sx={{ display: "flex", flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, sm: 4, md: 8 }}}>
                 <Box sx={{ gap: "5px", flexGrow: "2"}} >
                     <Typography variant="subtitle1">{t('analytics.largestBurst', { label: currentBurst.label })}</Typography>
-                    <Typography variant="h3">{getPlayerDisplayName({ label: currentBurst.player_name, id: currentBurst.player_id ?? currentBurst.playerId })}</Typography>
+                    <Typography variant="h3">{currentBurst.player_display_name ?? getPlayerDisplayName({ label: currentBurst.player_name, id: currentBurst.player_id ?? currentBurst.playerId })}</Typography>
                     <Typography variant="h3">{formatLargeNumber(currentBurst.damage)}</Typography>
                     <Typography variant="subtitle1">{t('analytics.startedAt', { time: currentBurst.start })}</Typography>
                 </Box>

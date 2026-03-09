@@ -33,12 +33,11 @@ async function safeJsonArray(response) {
     }
 }
 
-function getPlayerLabel(item) {
+function getPlayerDisplayText(item) {
     return getPlayerDisplayName({
-        label: item?.label ?? item?.player_name ?? item?.playerName,
+        label: item?.player_name ?? item?.playerName ?? item?.label,
         name: item?.name,
-        id: item?.id,
-        playerId: item?.player_id ?? item?.playerId,
+        id: item?.player_id ?? item?.playerId ?? item?.id,
     });
 }
 
@@ -101,7 +100,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                             start: formatTimeStamp(res.unix_timestamp),
                             end: formatTimeStamp(res.unix_timestamp + 60),
                             ...res,
-                            player_name: getPlayerLabel(res),
+                            player_display_name: getPlayerDisplayText(res),
                         }
                         return band
                     })
@@ -120,7 +119,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                             start: formatTimeStamp(res.unix_timestamp),
                             end: formatTimeStamp(res.unix_timestamp + 60),
                             ...res,
-                            player_name: getPlayerLabel(res),
+                            player_display_name: getPlayerDisplayText(res),
                         }
                         return band
                     })
@@ -139,7 +138,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                             start: formatTimeStamp(res.unix_timestamp),
                             end: formatTimeStamp(res.unix_timestamp + 60),
                             ...res,
-                            player_name: getPlayerLabel(res),
+                            player_display_name: getPlayerDisplayText(res),
                         }
                         return band
                     })
@@ -195,7 +194,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             .then(data => {
                 const safeData = data.map(item => ({
                     ...item,
-                    player_name: getPlayerLabel(item),
+                    player_display_name: getPlayerDisplayText(item),
                 }));
                 setLargestDamageInstances(safeData)
                 setGraphLargestDamageInstance(safeData[0])
@@ -225,17 +224,19 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                 const dmgMap = new Map();
 
                 const series = data.reduce((series, damage_simple) => {
-                    const playerLabel = getPlayerLabel(damage_simple);
-                    let entry = series.find((element) => element.label === playerLabel);
+                    const playerKey = String(damage_simple.player_id ?? damage_simple.playerId ?? damage_simple.player_name ?? damage_simple.playerName ?? damage_simple.id ?? 'Unknown');
+                    const playerLabel = getPlayerDisplayText(damage_simple);
+                    let entry = series.find((element) => element.id === playerKey);
 
                     if (!entry) {
                         entry = {
+                            id: playerKey,
                             label: playerLabel,
                             highlightScope: { highlight: 'series', fade: 'global' },
                             markerSize: 2,
                             data: [],
                         }
-                        dmgMap.set(playerLabel, 0)
+                        dmgMap.set(playerKey, 0)
                         series.push(entry)
                     }
 
@@ -245,12 +246,12 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         id: entry.data.length
                     });
 
-                    dmgMap.set(playerLabel, (dmgMap.get(playerLabel) || 0) + damage_simple.damage);
+                    dmgMap.set(playerKey, (dmgMap.get(playerKey) || 0) + damage_simple.damage);
 
                     return series
                 }, []);
 
-                series.sort((a, b) => dmgMap.get(b.label) - dmgMap.get(a.label))
+                series.sort((a, b) => dmgMap.get(b.id) - dmgMap.get(a.id))
 
                 setScatterPlotSeries(series)
             })

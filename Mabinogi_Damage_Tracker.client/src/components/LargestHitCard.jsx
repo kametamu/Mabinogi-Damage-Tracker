@@ -42,7 +42,7 @@ export default function LargestHitCard({ largestDamageInstances, setGraphLargest
             <StarIcon fontSize="medium" sx={{ marginBottom: "8%" }} />
             <Box sx={{ display: "flex", flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, sm: 4, md: 8 }}}>
                 <Box sx={{ gap: "10px", flexGrow: "2" }}>
-                    <Typography variant="subtitle1">{t('analytics.largestHitBy', { player: currentlargestDamageInstance.player_name })}</Typography>
+                    <Typography variant="subtitle1">{t('analytics.largestHitBy', { player: currentlargestDamageInstance.player_display_name ?? currentlargestDamageInstance.player_name ?? String(currentlargestDamageInstance.player_id ?? currentlargestDamageInstance.playerId ?? 'Unknown') })}</Typography>
                     <Typography variant="h3">{formatLargeNumber(currentlargestDamageInstance.damage)}</Typography>
                 </Box>
             </Box>
