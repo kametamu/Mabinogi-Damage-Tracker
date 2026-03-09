@@ -72,18 +72,26 @@ function formatLargeNumber(num) {
     return formatted.replace(/\.0(?=[A-Z])/, '');
 }
 
+function matchesPlayerKey(series, playerKey) {
+    if (playerKey === null || playerKey === undefined) {
+        return false;
+    }
+
+    return String(series?.id) === String(playerKey);
+}
+
 function DamageLabels({ largestDamageInstance }) {
     const { t } = useTranslation();
     const lineSeries = useLineSeries();
 
-    if (!lineSeries) {
+    if (!lineSeries || !largestDamageInstance) {
         return null;
     }
 
     return (
         <div>
             {lineSeries.map((series, index) => {
-                if (String(series.id) === String(largestDamageInstance.player_key))
+                if (matchesPlayerKey(series, largestDamageInstance.player_key))
                     return (< React.Fragment key={`damage_label_${index}`}>
                         <SingleSeriesExtremaLabels series={series} largestDamageInstance={largestDamageInstance} />
                     </React.Fragment>)
@@ -188,7 +196,7 @@ function DPSBands({ bands }) {
     return (
         <g>
             {bands.map((b, index) => {
-                const matchingSeries = lineSeries.find((series) => String(series.id) === String(b.player_key));
+                const matchingSeries = lineSeries.find((series) => matchesPlayerKey(series, b.player_key));
                 if (!matchingSeries?.color) {
                     return null;
                 }

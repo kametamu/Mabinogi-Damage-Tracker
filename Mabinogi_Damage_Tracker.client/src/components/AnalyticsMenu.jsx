@@ -37,6 +37,11 @@ function isFinitePoint(x, y) {
     return Number.isFinite(Number(x)) && Number.isFinite(Number(y));
 }
 
+function isPositiveFiniteNumber(value) {
+    const numericValue = Number(value);
+    return Number.isFinite(numericValue) && numericValue > 0;
+}
+
 async function safeJsonArray(response) {
     if (!response.ok) {
         return [];
@@ -296,7 +301,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
                 const x = toFiniteNumber(point.unix_timestamp, null);
                 const y = toFiniteNumber(point.damage, null);
-                if (x === null || y === null || y <= 0 || !isFinitePoint(x, y)) {
+                if (x === null || y === null || !isFinitePoint(x, y) || !isPositiveFiniteNumber(y)) {
                     return acc;
                 }
 
