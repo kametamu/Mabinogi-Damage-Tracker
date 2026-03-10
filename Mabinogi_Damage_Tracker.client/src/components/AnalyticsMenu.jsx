@@ -16,7 +16,6 @@ import DamageScatterPlot from './DamageScatterPlot';
 import LargestHitCard from './LargestHitCard';
 import BurstCard from './BurstCard';
 import HealingCard from './HealingCard';
-import { getLocalizedSkillName } from '../i18n/skills';
 
 function formatTimeStamp(ut) {
     return new Date((ut) * 1000).toLocaleTimeString(
@@ -25,20 +24,18 @@ function formatTimeStamp(ut) {
     );
 }
 
-function transformDataPieDamage(apiData, language) {
+function transformDataPieDamage(apiData) {
     return apiData.map(item => ({
-        skillId: item.skill_id ?? item.skillId ?? item.id,
-        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
+        label: item.label,
         value: item.data.at(-1)
     }));
 }
 
-function transformDataLineChartDamage(apiData, language) {
+function transformDataLineChartDamage(apiData) {
     return apiData.map(item => ({
         type: "line",
         id: item.id,
-        skillId: item.skill_id ?? item.skillId ?? item.id,
-        label: getLocalizedSkillName(item.skill_id ?? item.skillId ?? item.id, item.label, language),
+        label: item.label,
         data: item.data,
         area: false,
         showMark: false,
@@ -46,7 +43,7 @@ function transformDataLineChartDamage(apiData, language) {
 }
 
 export default function AnalyticsMenu({ start_ut, end_ut }) {
-    const { t, i18n } = useTranslation();
+    const { t } = useTranslation();
     const { burstCount, largestDamageInstanceCount } = useContext(AppContext)
     const [damageOverTimeData, setDamageOverTimeData] = useState([])
     const [damagePieChartData, setDamagePieChartData] = useState([])
@@ -91,7 +88,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         const band = {
                             label: '30s',
                             start: formatTimeStamp(res.unix_timestamp),
-                            end: formatTimeStamp(res.unix_timestamp + 60),
+                            end: formatTimeStamp(res.unix_timestamp + 30),
                             ...res,
                         }
                         return band
@@ -107,7 +104,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         const band = {
                             label: '15s',
                             start: formatTimeStamp(res.unix_timestamp),
-                            end: formatTimeStamp(res.unix_timestamp + 60),
+                            end: formatTimeStamp(res.unix_timestamp + 15),
                             ...res,
                         }
                         return band
@@ -137,7 +134,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     }
                 });
 
-                const newLineChartData = transformDataLineChartDamage(sortedData, i18n.language)
+                const newLineChartData = transformDataLineChartDamage(sortedData)
                 setDamageOverTimeData(newLineChartData);
 
                 const newCombinedDamageOverTimeData = newLineChartData[0]?.data?.map((_, index) =>
@@ -146,7 +143,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
                 setCombinedDamageOverTimeData(newCombinedDamageOverTimeData)
 
-                const newPieChartData = transformDataPieDamage(sortedData, i18n.language)
+                const newPieChartData = transformDataPieDamage(sortedData)
                 setDamagePieChartData(newPieChartData);
 
                 const newTotalDamage = newCombinedDamageOverTimeData.at(-1);
@@ -207,7 +204,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             })
         
         getDamageBands()
-    }, [start_ut, end_ut, burstCount, largestDamageInstanceCount, i18n.language]);
+    }, [start_ut, end_ut, burstCount, largestDamageInstanceCount]);
     
     return (
         <Box>
