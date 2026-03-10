@@ -290,7 +290,7 @@ export default function TrimLineGraph({ chartData, start_ut, end_ut }) {
         { hour: 'numeric', minute: '2-digit', second: '2-digit' }
     );
     const [range, setRange] = useState([timeStart, timeEnd]);
-    const [rangeUt, setRangeUt] = useState([]);
+    const [rangeUt, setRangeUt] = useState([start_ut, end_ut]);
 
     function onBrushChange(startIndex, endIndex) {
         const minIndex = Math.min(startIndex, endIndex);
