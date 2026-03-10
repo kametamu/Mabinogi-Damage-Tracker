@@ -28,6 +28,10 @@ function formatLargeNumber(num) {
     return formatted.replace(/\.0(?=[A-Z])/, '');
 }
 export default function BurstCard({ bands, graphBands, setGraphBands }) {
+    if (!Array.isArray(bands) || bands.length === 0 || !bands[0]) {
+        return null;
+    }
+
     const { t } = useTranslation();
     const cardLabel = bands[0].label
     const [activeStep, setActiveStep] = useState(0);
