@@ -994,7 +994,7 @@ namespace Mabinogi_Damage_tracker
             }
             catch
             {
-                return null;
+                return new List<string>();
             }
 
             return results;

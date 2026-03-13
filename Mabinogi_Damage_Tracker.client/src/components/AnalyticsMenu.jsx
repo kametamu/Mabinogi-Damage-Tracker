@@ -87,9 +87,21 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
         fetch(`http://${window.location.hostname}:5004/Home/GetDistinctEnemyIdsBetweenUt?start_ut=${start_ut}&end_ut=${end_ut}`)
             .then(response => response.json())
             .then(data => {
-                setEnemyIds(data ?? [])
+                const refreshedEnemyIds = data ?? []
+                setEnemyIds(refreshedEnemyIds)
+                setSelectedEnemyId((currentEnemyId) => {
+                    if (currentEnemyId === 'all') {
+                        return currentEnemyId
+                    }
+
+                    return refreshedEnemyIds.includes(currentEnemyId) ? currentEnemyId : 'all'
+                })
             })
-            .catch(error => console.error('Error:', error));
+            .catch(error => {
+                console.error('Error:', error)
+                setEnemyIds([])
+                setSelectedEnemyId('all')
+            });
     }, [start_ut, end_ut]);
 
     useEffect(() => {
