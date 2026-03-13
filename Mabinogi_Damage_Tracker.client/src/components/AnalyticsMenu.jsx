@@ -1,11 +1,14 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AppContext } from '../AppContext'
 import Grid from '@mui/material/Grid';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';
 import Skeleton from '@mui/material/Skeleton';
-import Divider from '@mui/material/Divider';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
+import Select from '@mui/material/Select';
+import MenuItem from '@mui/material/MenuItem';
 import DamageCard from './DamageCard';
 import PlayerCountCard from './PlayerCountCard';
 import TimeCard from './TimeCard';
@@ -43,7 +46,7 @@ function transformDataLineChartDamage(apiData) {
 }
 
 export default function AnalyticsMenu({ start_ut, end_ut }) {
-    const { t } = useTranslation();
+    const { t, i18n } = useTranslation();
     const { burstCount, largestDamageInstanceCount } = useContext(AppContext)
     const [damageOverTimeData, setDamageOverTimeData] = useState([])
     const [damagePieChartData, setDamagePieChartData] = useState([])
@@ -55,90 +58,82 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     const [graphLargestDamageInstance, setGraphLargestDamageInstance] = useState(null)
     const [bands, setBands] = useState([])
     const [graphBands, setGraphBands] = useState([])
-    // Scatter Plot
     const [scatterPlotSeries, setScatterPlotSeries] = useState([]);
+    const [enemyIds, setEnemyIds] = useState([])
+    const [selectedEnemyId, setSelectedEnemyId] = useState('all')
 
+    const getEnemyDisplayName = (enemyId) => {
+        const translated = i18n.t(`enemies.${enemyId}`, { defaultValue: enemyId })
+        return translated || enemyId
+    }
+
+    const enemyOptions = useMemo(() => {
+        return enemyIds.map((enemyId) => ({
+            id: enemyId,
+            label: getEnemyDisplayName(enemyId)
+        }))
+    }, [enemyIds, i18n.language])
+
+    const getUrl = (path, query = {}) => {
+        const params = new URLSearchParams(query)
+        if (selectedEnemyId !== 'all') {
+            params.set('enemy_id', selectedEnemyId)
+        }
+
+        return `http://${window.location.hostname}:5004/Home/${path}?${params.toString()}`
+    }
 
     useEffect(() => {
+        fetch(`http://${window.location.hostname}:5004/Home/GetDistinctEnemyIdsBetweenUt?start_ut=${start_ut}&end_ut=${end_ut}`)
+            .then(response => response.json())
+            .then(data => {
+                const refreshedEnemyIds = data ?? []
+                setEnemyIds(refreshedEnemyIds)
+                setSelectedEnemyId((currentEnemyId) => {
+                    if (currentEnemyId === 'all') {
+                        return currentEnemyId
+                    }
 
-        // GetDamangeBands()
+                    return refreshedEnemyIds.includes(currentEnemyId) ? currentEnemyId : 'all'
+                })
+            })
+            .catch(error => {
+                console.error('Error:', error)
+                setEnemyIds([])
+                setSelectedEnemyId('all')
+            });
+    }, [start_ut, end_ut]);
+
+    useEffect(() => {
         async function getDamageBands() {
             const newBands = []
             const newGraphBands = []
-            await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${60}&count=${burstCount}`)
-                .then(response => response.json())
-                .then(data => {
-                    const bands = data.map((res) => {
-                        const band = {
-                            label: '60s',
+            for (const timeframe of [60, 30, 15]) {
+                await fetch(getUrl('GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes', { start_ut, end_ut, burst_timeframe: timeframe, count: burstCount }))
+                    .then(response => response.json())
+                    .then(data => {
+                        const timeframeBands = (data ?? []).map((res) => ({
+                            label: `${timeframe}s`,
                             start: formatTimeStamp(res.unix_timestamp),
-                            end: formatTimeStamp(res.unix_timestamp + 60),
+                            end: formatTimeStamp(res.unix_timestamp + timeframe),
                             ...res,
-                        }
-                        return band
-                    })
-                    if (bands.length > 0) {
-                        newGraphBands.push(bands[0])
-                        newBands.push(bands)
-                    }
-                })
+                        }))
 
-            await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${30}&count=${burstCount}`)
-                .then(response => response.json())
-                .then(data => {
-                    const bands = data.map((res) => {
-                        const band = {
-                            label: '30s',
-                            start: formatTimeStamp(res.unix_timestamp),
-                            end: formatTimeStamp(res.unix_timestamp + 30),
-                            ...res,
+                        if (timeframeBands.length > 0) {
+                            newGraphBands.push(timeframeBands[0])
+                            newBands.push(timeframeBands)
                         }
-                        return band
                     })
-                    if (bands.length > 0) {
-                        newGraphBands.push(bands[0])
-                        newBands.push(bands)
-                    }
-                })
+            }
 
-            await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${15}&count=${burstCount}`)
-                .then(response => response.json())
-                .then(data => {
-                    const bands = data.map((res) => {
-                        const band = {
-                            label: '15s',
-                            start: formatTimeStamp(res.unix_timestamp),
-                            end: formatTimeStamp(res.unix_timestamp + 15),
-                            ...res,
-                        }
-                        return band
-                    })
-                    if (bands.length > 0) {
-                        newGraphBands.push(bands[0])
-                        newBands.push(bands)
-                    }
-                })
             setGraphBands(newGraphBands)
             setBands(newBands)
         }
-        // End of GetDamangeBands()
 
-
-        fetch(`http://${window.location.hostname}:5004/Home/GetAggregatedDamageSeriesGroupedByPlayers?start_ut=${start_ut}&end_ut=${end_ut}`)
+        fetch(getUrl('GetAggregatedDamageSeriesGroupedByPlayers', { start_ut, end_ut }))
             .then(response => response.json())
             .then(data => {
-                const sortedData = data.sort((a, b) => {
-                    const damageA = a.data.at(-1)
-                    const damageB = b.data.at(-1)
-
-                    if (damageA > damageB) {
-                        return -1;
-                    } else if (damageA < damageB) {
-                        return 1;
-                    } else {
-                        return 0;
-                    }
-                });
+                const sortedData = (data ?? []).sort((a, b) => (b.data.at(-1) ?? 0) - (a.data.at(-1) ?? 0));
 
                 const newLineChartData = transformDataLineChartDamage(sortedData)
                 setDamageOverTimeData(newLineChartData);
@@ -148,23 +143,17 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                 ) ?? [];
 
                 setCombinedDamageOverTimeData(newCombinedDamageOverTimeData)
-
-                const newPieChartData = transformDataPieDamage(sortedData)
-                setDamagePieChartData(newPieChartData);
-
-                const newTotalDamage = newCombinedDamageOverTimeData.at(-1);
-                setTotalDamage(newTotalDamage)
-
-                const newNumberOfPlayers = newLineChartData.length
-                setNumberOfPlayers(newNumberOfPlayers)
+                setDamagePieChartData(transformDataPieDamage(sortedData));
+                setTotalDamage(newCombinedDamageOverTimeData.at(-1) ?? 0)
+                setNumberOfPlayers(newLineChartData.length)
             })
             .catch(error => console.error('Error:', error));
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctLargestSingleDamageInstance?start_ut=${start_ut}&end_ut=${end_ut}&count=${largestDamageInstanceCount}`)
+        fetch(getUrl('GetListOfDistinctLargestSingleDamageInstance', { start_ut, end_ut, count: largestDamageInstanceCount }))
             .then(response => response.json())
             .then(data => {
-                setLargestDamageInstances(data)
-                setGraphLargestDamageInstance(data[0])
+                setLargestDamageInstances(data ?? [])
+                setGraphLargestDamageInstance(data?.[0] ?? null)
             })
 
         fetch(`http://${window.location.hostname}:5004/Home/GetTotalPlayerHealing?start_ut=${start_ut}&end_ut=${end_ut}`)
@@ -174,12 +163,12 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             })
 
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetDamagesBetweenUt?start_ut=${start_ut}&end_ut=${end_ut}`)
+        fetch(getUrl('GetDamagesBetweenUt', { start_ut, end_ut }))
             .then(response => response.json())
             .then(data => {
                 const dmgMap = new Map();
 
-                const series = data.reduce((series, damage_simple) => {
+                const series = (data ?? []).reduce((series, damage_simple) => {
                     let entry = series.find((element) => element.label === damage_simple.player_name);
 
                     if (!entry) {
@@ -208,35 +197,53 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
                 setScatterPlotSeries(series)
             })
-        
+
         getDamageBands()
-    }, [start_ut, end_ut, burstCount, largestDamageInstanceCount]);
-    
+    }, [start_ut, end_ut, burstCount, largestDamageInstanceCount, selectedEnemyId]);
+
     return (
         <Box>
-            <Typography variant="h2" sx={{ marginBottom: "8px"}}>{t('analytics.title')}</Typography>
+            <Typography variant="h2" sx={{ marginBottom: "8px" }}>{t('analytics.title')}</Typography>
+            <Box sx={{ marginBottom: 2 }}>
+                <FormControl size="small" sx={{ minWidth: 280 }}>
+                    <InputLabel id="enemy-filter-select-label">{t('analytics.enemyFilter')}</InputLabel>
+                    <Select
+                        labelId="enemy-filter-select-label"
+                        value={selectedEnemyId}
+                        label={t('analytics.enemyFilter')}
+                        onChange={(event) => setSelectedEnemyId(event.target.value)}
+                    >
+                        <MenuItem value="all">{t('analytics.enemyFilterAll')}</MenuItem>
+                        {enemyOptions.map((enemy) => (
+                            <MenuItem key={enemy.id} value={enemy.id}>{enemy.label}</MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
+            </Box>
             <Grid container spacing={{ xs: 1, md: 2 }} alignItems="stretch" sx={{ flexGrow: 1 }}>
-                { /* Total Damage Card */}
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} >
                     {combinedDamageOverTimeData ?
-                        <DamageCard chartData={combinedDamageOverTimeData} totalDamage={totalDamage} />
+                        <DamageCard
+                            chartData={combinedDamageOverTimeData}
+                            totalDamage={totalDamage}
+                            title={selectedEnemyId === 'all'
+                                ? t('common.totalDamage')
+                                : t('analytics.totalDamageFiltered', { enemy: getEnemyDisplayName(selectedEnemyId) })}
+                        />
                         :
                         <Skeleton variant="rounded" />
                     }
                 </Grid>
-                { /* Number of Players Card */}
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} >
                     {numberOfPlayer ?
                         <PlayerCountCard count={numberOfPlayer} />
                         :
                         <Skeleton variant="rounded" />
                     }
-                </Grid> 
-                { /* Time Card */}
+                </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} >
                     <TimeCard length_ut={end_ut - start_ut} />
                 </Grid>
-                { /* Total Healing Card */}
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} >
                     {combinedDamageOverTimeData ?
                         <HealingCard totalHealing={totalHealing} />
@@ -244,7 +251,6 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         <Skeleton variant="rounded" />
                     }
                 </Grid>
-                { /* Largest Damage Instance Card */}
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} sx={{ height: '250px', paddingBottom: '14px' }}>
                     {largestDamageInstances.length ?
                         <LargestHitCard largestDamageInstances={largestDamageInstances} setGraphLargestDamageInstance={setGraphLargestDamageInstance} />
@@ -252,21 +258,18 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         <Skeleton variant="rounded" />
                     }
                 </Grid>
-                { /* Largets Burst Cards */ }
-                {bands.length ? 
+                {bands.length ?
                     bands.map((band, index) =>
                         <Grid key={`band_${index}`} size={{ xs: 12, sm: 6, lg: 3 }} sx={{ height: '250px', paddingBottom: '14px' }}>
                             <BurstCard bands={band} graphBands={graphBands} setGraphBands={setGraphBands} />
                         </Grid>
                     )
-                    : Array.from(2).map((_) => <Skeleton variant="rounded" />)
+                    : Array.from(2).map((_, idx) => <Skeleton key={`band-skeleton-${idx}`} variant="rounded" />)
                 }
 
-                { /* Player Damange Pie Chart */}
                 <Grid size={{ xs: 12, sm: 12, lg: 8, xl: 4 }} >
                     <PlayerDamagePieChart chartData={damagePieChartData} />
                 </Grid>
-                { /* Player Damage Line Chart */}
                 <Grid size={{ xs: 12, sm: 12, lg: 12, xl: 8 }} >
                     {(damageOverTimeData && graphLargestDamageInstance && graphBands.length) ?
                         <DecoratedDamageOverTimeLineGraph chartData={damageOverTimeData} bands={graphBands} largestDamageInstance={graphLargestDamageInstance} start_ut={start_ut} />
@@ -274,24 +277,22 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         <Skeleton variant="rounded" />
                     }
                 </Grid>
-                { /* Player Damage Scatter Plot */}
                 <Grid size={{ xs: 12, sm: 12, lg: 12, xl: 12 }} >
                     {(damageOverTimeData && graphLargestDamageInstance && graphBands.length) ?
-                        <DamageScatterPlot series={scatterPlotSeries}/>
+                        <DamageScatterPlot series={scatterPlotSeries} />
                         :
                         <Skeleton variant="rounded" />
                     }
                 </Grid>
-                { /* Trim Line Graph */}
-                <Grid size={12} > 
+                <Grid size={12} >
                     {combinedDamageOverTimeData.length !== 0 ? (
                         <TrimLineGraph chartData={combinedDamageOverTimeData} start_ut={start_ut} end_ut={end_ut} />
                     ) : (
-                        <Skeleton variant="rounded"/>
-                        )
+                        <Skeleton variant="rounded" />
+                    )
                     }
                 </Grid>
             </Grid>
-       </Box >
-  );
+        </Box >
+    );
 }
