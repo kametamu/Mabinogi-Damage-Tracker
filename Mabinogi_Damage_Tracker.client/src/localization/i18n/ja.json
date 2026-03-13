@@ -54,7 +54,10 @@
     "largestBurst": "{{label}} バースト",
     "startedAt": "開始時刻 ：{{time}}",
     "damageScatterPlot": "ダメージ分布",
-    "damageBands": "ダメージ帯"
+    "damageBands": "ダメージ帯",
+    "enemyFilter": "敵フィルター",
+    "enemyFilterAll": "すべて",
+    "totalDamageFiltered": "合計ダメージ（{{enemy}}）"
   },
   "players": {
     "title": "プレイヤー",
@@ -77,5 +80,6 @@
     "recordingLength": "戦闘時間",
     "trimRecording": "ログをトリミング",
     "trimDescription": "トリミングした戦闘履歴は戦闘履歴テーブルに新しいエントリーとして表示されます"
-  }
+  },
+  "enemies": {}
 }

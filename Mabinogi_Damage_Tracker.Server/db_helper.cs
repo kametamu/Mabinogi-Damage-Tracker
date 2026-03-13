@@ -12,6 +12,11 @@ namespace Mabinogi_Damage_tracker
     {
         private static string db_connection = @"Data Source=trackerdb.db;";
 
+        private static bool HasEnemyFilter(string? enemy_id)
+        {
+            return string.IsNullOrWhiteSpace(enemy_id) == false;
+        }
+
         public static void Initalize_db()
         {
             using (SqliteConnection connection = new SqliteConnection(db_connection))
@@ -165,12 +170,12 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
-        public static Damage_Simple Get_Largest_Single_Damage_Instance(int start_ut, int end_ut)
+        public static Damage_Simple Get_Largest_Single_Damage_Instance(int start_ut, int end_ut, string? enemy_id = null)
         {
-            return Get_ListOf_Distinct_Largest_Single_Damage_Instance(start_ut, end_ut, 1)[0];
+            return Get_ListOf_Distinct_Largest_Single_Damage_Instance(start_ut, end_ut, 1, enemy_id)[0];
         }
 
-        public static List<Damage_Simple> Get_ListOf_Distinct_Largest_Single_Damage_Instance(int start_ut, int end_ut, int count)
+        public static List<Damage_Simple> Get_ListOf_Distinct_Largest_Single_Damage_Instance(int start_ut, int end_ut, int count, string? enemy_id = null)
         {
             List<Damage_Simple> query_results = new List<Damage_Simple>();
             try
@@ -178,19 +183,32 @@ namespace Mabinogi_Damage_tracker
                 using (SqliteConnection connection = new SqliteConnection(db_connection))
                 {
                     connection.Open();
-                    SqliteCommand command = new SqliteCommand(@"
+                    string query = @"
                     SELECT distinct damages.playerid, MAX(damage) AS mx_damage, playername, damages.ut
                     FROM damages
                     left join players on damages.playerid = players.playerid
-                    WHERE ut BETWEEN @start_ut AND @end_ut
+                    WHERE ut BETWEEN @start_ut AND @end_ut";
+
+                    if (HasEnemyFilter(enemy_id))
+                    {
+                        query += " AND CAST(damages.enemyid AS TEXT) = @enemy_id";
+                    }
+
+                    query += @"
                     GROUP by damages.playerid 
                     order by mx_damage DESC
                     limit @count
-                    ", connection);
+                    ";
+
+                    SqliteCommand command = new SqliteCommand(query, connection);
 
                     command.Parameters.AddWithValue("@start_ut", start_ut);
                     command.Parameters.AddWithValue("@end_ut", end_ut);
                     command.Parameters.AddWithValue("@count", count);
+                    if (HasEnemyFilter(enemy_id))
+                    {
+                        command.Parameters.AddWithValue("@enemy_id", enemy_id);
+                    }
 
                     using (SqliteDataReader reader = command.ExecuteReader())
                     {
@@ -389,7 +407,7 @@ namespace Mabinogi_Damage_tracker
             return query_results;
         }
 
-        public static List<Models.Damage_Simple> Get_Damages_Between_Ut(Int32 start_ut, Int32 end_ut)
+        public static List<Models.Damage_Simple> Get_Damages_Between_Ut(Int32 start_ut, Int32 end_ut, string? enemy_id = null)
         {
             List<Models.Damage_Simple> query_results = new List<Models.Damage_Simple>();
             try
@@ -397,17 +415,30 @@ namespace Mabinogi_Damage_tracker
                 using (SqliteConnection connection = new SqliteConnection(db_connection))
                 {
                     connection.Open();
-                    using (SqliteCommand command = new SqliteCommand(@"
+                    string query = @"
                         SELECT damages.id, damages.playerid, damage, playername, ut
                         FROM damages
                         left join players on damages.playerid = players.playerid
-                        WHERE damages.ut BETWEEN @start_ut and @end_ut
+                        WHERE damages.ut BETWEEN @start_ut and @end_ut";
+
+                    if (HasEnemyFilter(enemy_id))
+                    {
+                        query += " AND CAST(damages.enemyid AS TEXT) = @enemy_id";
+                    }
+
+                    query += @"
                         ORDER BY ut ASC;
-                    ", connection))
+                    ";
+
+                    using (SqliteCommand command = new SqliteCommand(query, connection))
                     {
 
                         command.Parameters.AddWithValue("@start_ut", start_ut);
                         command.Parameters.AddWithValue("@end_ut", end_ut);
+                        if (HasEnemyFilter(enemy_id))
+                        {
+                            command.Parameters.AddWithValue("@enemy_id", enemy_id);
+                        }
 
                         using (SqliteDataReader reader = command.ExecuteReader())
                         {
@@ -638,7 +669,7 @@ namespace Mabinogi_Damage_tracker
         }
 
         //rewrite so this calls get_damage_groupedbypalyers_betweenUT
-        public static List<object> Get_AggregatedDamage_GroupedByPlayers_BetweenUT(int start_ut, int end_ut)
+        public static List<object> Get_AggregatedDamage_GroupedByPlayers_BetweenUT(int start_ut, int end_ut, string? enemy_id = null)
         {
             try
             {
@@ -646,16 +677,29 @@ namespace Mabinogi_Damage_tracker
                 {
                     connection.Open();
 
-                    using (var command = new SqliteCommand(@"
+                    string query = @"
                         SELECT damages.playerid, damage, playername, ut
                         FROM damages
                         left join players on damages.playerid = players.playerid
-                        where ut BETWEEN @start_ut AND @end_ut
+                        where ut BETWEEN @start_ut AND @end_ut";
+
+                    if (HasEnemyFilter(enemy_id))
+                    {
+                        query += " AND CAST(damages.enemyid AS TEXT) = @enemy_id";
+                    }
+
+                    query += @"
                         ORDER BY ut;
-                    ", connection))
+                    ";
+
+                    using (var command = new SqliteCommand(query, connection))
                     {
                         command.Parameters.AddWithValue("@start_ut", start_ut);
                         command.Parameters.AddWithValue("@end_ut", end_ut);
+                        if (HasEnemyFilter(enemy_id))
+                        {
+                            command.Parameters.AddWithValue("@enemy_id", enemy_id);
+                        }
 
                         var players = new Dictionary<long, string>();
                         var buckets = new Dictionary<long, Dictionary<long, double>>();
@@ -760,9 +804,9 @@ namespace Mabinogi_Damage_tracker
             return query_results;
         }
 
-        public static Damage_Simple Get_Biggest_BurstofDamage_InUT_BetweenTimes(int start_ut, int end_ut, int burst_timeframe)
+        public static Damage_Simple Get_Biggest_BurstofDamage_InUT_BetweenTimes(int start_ut, int end_ut, int burst_timeframe, string? enemy_id = null)
         {
-            return Get_ListOf_Distinct_Biggest_BurstofDamage_InUT_BetweenTimes(start_ut, end_ut, burst_timeframe, 1)[0];
+            return Get_ListOf_Distinct_Biggest_BurstofDamage_InUT_BetweenTimes(start_ut, end_ut, burst_timeframe, 1, enemy_id)[0];
         }
 
         /// <summary>
@@ -773,7 +817,7 @@ namespace Mabinogi_Damage_tracker
         /// <param name="end_ut"></param>
         /// <param name="burst_timeframe"></param>
         /// <returns>damage_simple.unix_timestamp marks the begining section of the burst</returns>
-        public static List<Damage_Simple> Get_ListOf_Distinct_Biggest_BurstofDamage_InUT_BetweenTimes(int start_ut, int end_ut, int burst_timeframe, int count)
+        public static List<Damage_Simple> Get_ListOf_Distinct_Biggest_BurstofDamage_InUT_BetweenTimes(int start_ut, int end_ut, int burst_timeframe, int count, string? enemy_id = null)
         {
             List<Damage_Simple> damages = new List<Damage_Simple>();
             try
@@ -782,39 +826,47 @@ namespace Mabinogi_Damage_tracker
                 {
                     connection.Open();
 
-                    using (var command = new SqliteCommand(@"
+                    string enemyFilterClause = HasEnemyFilter(enemy_id) ? " AND CAST(enemyid AS TEXT) = @enemy_id" : string.Empty;
+                    string query = $@"
                     select DISTINCT MAX(sum_dmg), plyr.playername, chunk_start, bigselect.playerid
                     FROM(
-	                    select sum(damage) as sum_dmg, (ut/@burst_timeframe)*@burst_timeframe as chunk_start, playerid
-	                    from damages
-	                    where ut > @start_ut and ut < @end_ut
-	                    group by playerid, chunk_start
-	
-	                    union select sum(damage) as sum_dmg, ((ut/@burst_timeframe)*@burst_timeframe)+(@burst_timeframe/4) as chunk_start, playerid
-	                    from damages
-	                    where ut > @start_ut and ut < @end_ut
-	                    group by playerid, chunk_start
-	
-	                    union select sum(damage) as sum_dmg, ((ut/@burst_timeframe)*@burst_timeframe)+(@burst_timeframe/4)*2 as chunk_start, playerid
-	                    from damages
-	                    where ut > @start_ut and ut < @end_ut
-	                    group by playerid, chunk_start
-	
-	                    union select sum(damage) as sum_dmg, ((ut/@burst_timeframe)*@burst_timeframe)+(@burst_timeframe/4)*3 as chunk_start, playerid
-	                    from damages
-	                    where ut > @start_ut and ut < @end_ut
-	                    group by playerid, chunk_start
-	                    ) as bigselect
+                        select sum(damage) as sum_dmg, (ut/@burst_timeframe)*@burst_timeframe as chunk_start, playerid
+                        from damages
+                        where ut > @start_ut and ut < @end_ut{enemyFilterClause}
+                        group by playerid, chunk_start
+
+                        union select sum(damage) as sum_dmg, ((ut/@burst_timeframe)*@burst_timeframe)+(@burst_timeframe/4) as chunk_start, playerid
+                        from damages
+                        where ut > @start_ut and ut < @end_ut{enemyFilterClause}
+                        group by playerid, chunk_start
+
+                        union select sum(damage) as sum_dmg, ((ut/@burst_timeframe)*@burst_timeframe)+(@burst_timeframe/4)*2 as chunk_start, playerid
+                        from damages
+                        where ut > @start_ut and ut < @end_ut{enemyFilterClause}
+                        group by playerid, chunk_start
+
+                        union select sum(damage) as sum_dmg, ((ut/@burst_timeframe)*@burst_timeframe)+(@burst_timeframe/4)*3 as chunk_start, playerid
+                        from damages
+                        where ut > @start_ut and ut < @end_ut{enemyFilterClause}
+                        group by playerid, chunk_start
+                        ) as bigselect
                         left join players as plyr on bigselect.playerid = plyr.playerid
-					    Group by bigselect.playerid
-					    order by sum_dmg DESC
-					    limit @count
-                    ", connection))
+                        Group by bigselect.playerid
+                        order by sum_dmg DESC
+                        limit @count
+                    ";
+
+                    using (var command = new SqliteCommand(query, connection))
                     {
                         command.Parameters.AddWithValue("@start_ut", start_ut);
                         command.Parameters.AddWithValue("@end_ut", end_ut);
                         command.Parameters.AddWithValue("@burst_timeframe", burst_timeframe);
                         command.Parameters.AddWithValue("@count", count);
+                        if (HasEnemyFilter(enemy_id))
+                        {
+                            command.Parameters.AddWithValue("@enemy_id", enemy_id);
+                        }
+
                         Damage_Simple results;
                         using (SqliteDataReader reader = command.ExecuteReader())
                         {
@@ -909,6 +961,43 @@ namespace Mabinogi_Damage_tracker
             {
                 return null;
             }
+        }
+
+
+        public static List<string> Get_Distinct_EnemyIds_Between_Ut(Int32 start_ut, Int32 end_ut)
+        {
+            List<string> results = new List<string>();
+            try
+            {
+                using (SqliteConnection connection = new SqliteConnection(db_connection))
+                {
+                    connection.Open();
+                    using (SqliteCommand command = new SqliteCommand(@"
+                        SELECT DISTINCT CAST(enemyid AS TEXT) AS enemyid
+                        FROM damages
+                        WHERE ut BETWEEN @start_ut and @end_ut
+                        ORDER BY enemyid ASC;
+                    ", connection))
+                    {
+                        command.Parameters.AddWithValue("@start_ut", start_ut);
+                        command.Parameters.AddWithValue("@end_ut", end_ut);
+
+                        using (SqliteDataReader reader = command.ExecuteReader())
+                        {
+                            while (reader.Read())
+                            {
+                                results.Add(reader.GetString(reader.GetOrdinal("enemyid")));
+                            }
+                        }
+                    }
+                }
+            }
+            catch
+            {
+                return null;
+            }
+
+            return results;
         }
 
         public static void Clear_Damage_DB()
