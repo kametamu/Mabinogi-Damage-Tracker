@@ -29,18 +29,27 @@ function formatLargeNumber(num) {
 }
 export default function BurstCard({ bands, graphBands, setGraphBands }) {
     const { t } = useTranslation();
-    const cardLabel = bands[0].label
     const [activeStep, setActiveStep] = useState(0);
-
-    const currentBurst = bands[activeStep];
+    const hasBands = Array.isArray(bands) && bands.length > 0 && !!bands[0];
+    const cardLabel = hasBands ? bands[0].label : null;
 
     useEffect(() => {
+        if (!hasBands) {
+            return;
+        }
+
         setGraphBands(prev =>
             prev.map(band =>
                 band.label === cardLabel ? bands[activeStep] : band
             )
         );
-    }, [activeStep, cardLabel, bands, setGraphBands])
+    }, [activeStep, cardLabel, bands, hasBands, setGraphBands])
+
+    if (!hasBands) {
+        return null;
+    }
+
+    const currentBurst = bands[activeStep];
 
     return (
         <Paper square={false} sx={{ position: 'relative', "padding-left": "32px","padding-top":"20px", gap: "10px", height: "100%", display: 'flex', flexDirection: 'column'}}>

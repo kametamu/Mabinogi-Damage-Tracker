@@ -77,8 +77,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         }
                         return band
                     })
-                    newGraphBands.push(bands[0])
-                    newBands.push(bands)
+                    if (bands.length > 0) {
+                        newGraphBands.push(bands[0])
+                        newBands.push(bands)
+                    }
                 })
 
             await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${30}&count=${burstCount}`)
@@ -93,8 +95,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         }
                         return band
                     })
-                    newGraphBands.push(bands[0])
-                    newBands.push(bands)
+                    if (bands.length > 0) {
+                        newGraphBands.push(bands[0])
+                        newBands.push(bands)
+                    }
                 })
 
             await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${15}&count=${burstCount}`)
@@ -109,8 +113,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         }
                         return band
                     })
-                    newGraphBands.push(bands[0])
-                    newBands.push(bands)
+                    if (bands.length > 0) {
+                        newGraphBands.push(bands[0])
+                        newBands.push(bands)
+                    }
                 })
             setGraphBands(newGraphBands)
             setBands(newBands)
