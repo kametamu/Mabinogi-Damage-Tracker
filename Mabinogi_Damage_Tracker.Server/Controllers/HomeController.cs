@@ -75,6 +75,12 @@ namespace Mabinogi_Damage_tracker.Controllers
             return Json(damages);
         }
 
+        public JsonResult GetSkillDamagesBetweenUt(int start_ut, int end_ut)
+        {
+            List<Skill_Damage_Record> damages = db_helper.Get_Skill_Damages_Between_Ut(start_ut, end_ut);
+            return Json(damages);
+        }
+
         public JsonResult GetAllDamagesGroupedByPlayersAfterId(int lastFetchedId)
         {
             object damage_series = db_helper.Get_AllDamages_GroupedByPlayers_AfterId(lastFetchedId);

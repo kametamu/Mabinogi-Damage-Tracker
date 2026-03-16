@@ -12,7 +12,7 @@ import DamangeOverTimeLineGraph from './DamageOverTimeLineGraph';
 import LinearProgress from '@mui/material/LinearProgress';
 import LogStream from './LogStream'
 import PlayerDamageGauge from './PlayerDamageGauge';
-import { getLocalizedSkillName } from '../i18n/skills';
+import { getLocalizedSkillName } from '../localization/i18n/skills';
 
 const RecordingButtonStyle = {
     width: '100%',

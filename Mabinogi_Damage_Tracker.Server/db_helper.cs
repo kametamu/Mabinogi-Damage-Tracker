@@ -437,6 +437,55 @@ namespace Mabinogi_Damage_tracker
 
         }
 
+
+        public static List<Models.Skill_Damage_Record> Get_Skill_Damages_Between_Ut(Int32 start_ut, Int32 end_ut)
+        {
+            List<Models.Skill_Damage_Record> query_results = new List<Models.Skill_Damage_Record>();
+            try
+            {
+                using (SqliteConnection connection = new SqliteConnection(db_connection))
+                {
+                    connection.Open();
+                    using (SqliteCommand command = new SqliteCommand(@"
+                        SELECT damages.playerid, damage, playername, skill
+                        FROM damages
+                        left join players on damages.playerid = players.playerid
+                        WHERE damages.ut BETWEEN @start_ut and @end_ut
+                        ORDER BY ut ASC;
+                    ", connection))
+                    {
+
+                        command.Parameters.AddWithValue("@start_ut", start_ut);
+                        command.Parameters.AddWithValue("@end_ut", end_ut);
+
+                        using (SqliteDataReader reader = command.ExecuteReader())
+                        {
+                            if (reader.HasRows == false) { return query_results; }
+
+                            while (reader.Read())
+                            {
+                                long playerId = reader.GetInt64(reader.GetOrdinal("playerid"));
+                                string playerName = reader.IsDBNull(reader.GetOrdinal("playername")) ? $"{playerId}" : reader.GetString(reader.GetOrdinal("playername"));
+                                double dmg = reader.GetDouble(reader.GetOrdinal("damage"));
+                                Int32 skillId = reader.GetInt32(reader.GetOrdinal("skill"));
+
+                                query_results.Add(new Models.Skill_Damage_Record(dmg, playerId, playerName, skillId));
+                            }
+                        }
+
+                        return query_results;
+                    }
+
+                }
+            }
+            catch (Exception ex)
+            {
+                Console.WriteLine("Exception: " + ex.ToString());
+                return query_results;
+            }
+
+        }
+
         public static object Get_AllDamages_GroupedByPlayers_AfterId(Int32 lastFetchedId)
         {
             try
