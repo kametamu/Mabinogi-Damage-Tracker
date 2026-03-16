@@ -54,7 +54,10 @@
     "largestBurst": "Largest {{label}} burst",
     "startedAt": "Started at {{time}}",
     "damageScatterPlot": "Damage Scatter Plot",
-    "damageBands": "Damage Bands"
+    "damageBands": "Damage Bands",
+    "enemyFilter": "Enemy Filter",
+    "enemyFilterAll": "All",
+    "totalDamageFiltered": "Total Damage ({{enemy}})"
   },
   "players": {
     "title": "Players",
@@ -77,5 +80,6 @@
     "recordingLength": "Recording Length",
     "trimRecording": "Trim Recording",
     "trimDescription": "Trimmed recordings are viewable as new entries in recordings table"
-  }
+  },
+  "enemies": {}
 }

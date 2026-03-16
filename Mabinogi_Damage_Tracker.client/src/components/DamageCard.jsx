@@ -27,7 +27,7 @@ function formatLargeNumber(num) {
     return formatted.replace(/\.0(?=[A-Z])/, '');
 }
 
-export default function DamageCard({ chartData, totalDamage }) {
+export default function DamageCard({ chartData, totalDamage, title }) {
     const { t } = useTranslation();
     
 
@@ -36,7 +36,7 @@ export default function DamageCard({ chartData, totalDamage }) {
             <AutoAwesomeIcon fontSize="large" sx={{ marginBottom: "1%" }} />
             <Box sx={{ display: "flex", flexDirection: { xs: 'column', md: 'row' }, gap: { xs: 2, sm: 4, md: 8 } }}>
                 <Box sx={{ gap: "10px", flexGrow: "2"}}>
-                    <Typography variant="subtitle1">{t('common.totalDamage')}</Typography>
+                    <Typography variant="subtitle1">{title ?? t('common.totalDamage')}</Typography>
                     <Typography variant="h3">{formatLargeNumber(totalDamage)}</Typography>
                 </Box>
                 <SparkLineChart
