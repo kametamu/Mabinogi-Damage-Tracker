@@ -409,29 +409,39 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     </Paper>
                 </Grid>
 
-                <Grid size={{ xs: 12, sm: 12, lg: 8, xl: 4 }} >
-                    <Paper square={false} sx={{ p: 2, height: '100%' }}>
-                        <Typography variant="h4">{t('analytics.skillUsageRatio')}</Typography>
-                        <SkillUsagePieChart chartData={skillUsageRatioData} />
+                <Grid size={{ xs: 12, sm: 12, lg: 6, xl: 6 }}>
+                    <Paper square={false} sx={{ p: 2, height: '100%', minHeight: 420, display: 'flex', flexDirection: 'column' }}>
+                        <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.skillUsageRatio')}</Typography>
+                        <Box sx={{ flex: 1, minHeight: 0 }}>
+                            <SkillUsagePieChart chartData={skillUsageRatioData} />
+                        </Box>
                     </Paper>
                 </Grid>
-                <Grid size={{ xs: 12, sm: 12, lg: 4, xl: 8 }}>
-                    <Paper square={false} sx={{ p: 2, height: '100%' }}>
+                <Grid size={{ xs: 12, sm: 12, lg: 6, xl: 6 }}>
+                    <Paper square={false} sx={{ p: 2, height: '100%', minHeight: 420, display: 'flex', flexDirection: 'column' }}>
                         <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.damageBySkill')}</Typography>
-                        <DataGrid
-                            rows={paginatedDamageBySkillRows}
-                            columns={damageBySkillColumns}
-                            pageSizeOptions={[5, 10, 20, 30, 60]}
-                            disableColumnResize
-                            disableRowSelectionOnClick
-                            initialState={{
-                                pagination: { paginationModel: { page: 0, pageSize: 10 } },
-                                sorting: {
-                                    sortModel: [{ field: 'totalDamage', sort: 'desc' }],
-                                },
-                            }}
-                            sx={{ border: 1, borderColor: 'divider' }}
-                        />
+                        <Box sx={{ flex: 1, minHeight: 0 }}>
+                            <DataGrid
+                                rows={paginatedDamageBySkillRows}
+                                columns={damageBySkillColumns}
+                                pageSizeOptions={[5, 10, 20, 30, 60]}
+                                disableColumnResize
+                                disableRowSelectionOnClick
+                                initialState={{
+                                    pagination: { paginationModel: { page: 0, pageSize: 10 } },
+                                    sorting: {
+                                        sortModel: [{ field: 'totalDamage', sort: 'desc' }],
+                                    },
+                                }}
+                                sx={{
+                                    border: 0,
+                                    backgroundColor: 'transparent',
+                                    '& .MuiDataGrid-main': { border: 0 },
+                                    '& .MuiDataGrid-columnHeaders': { backgroundColor: 'transparent' },
+                                    '& .MuiDataGrid-footerContainer': { borderTop: 0 },
+                                }}
+                            />
+                        </Box>
                     </Paper>
                 </Grid>
                 <Grid size={12} >
