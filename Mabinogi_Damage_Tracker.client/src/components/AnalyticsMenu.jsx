@@ -324,6 +324,23 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     : Array.from(2).map((_, index) => <Skeleton key={index} variant="rounded" />)
                 }
 
+                <Grid size={{ xs: 12, sm: 12, lg: 8, xl: 4 }} >
+                    <PlayerDamagePieChart chartData={damagePieChartData} />
+                </Grid>
+                <Grid size={{ xs: 12, sm: 12, lg: 12, xl: 8 }} >
+                    {(damageOverTimeData && graphLargestDamageInstance && graphBands.length) ?
+                        <DecoratedDamageOverTimeLineGraph chartData={damageOverTimeData} bands={graphBands} largestDamageInstance={graphLargestDamageInstance} start_ut={start_ut} />
+                        :
+                        <Skeleton variant="rounded" />
+                    }
+                </Grid>
+                <Grid size={{ xs: 12, sm: 12, lg: 12, xl: 12 }} >
+                    {(damageOverTimeData && graphLargestDamageInstance && graphBands.length) ?
+                        <DamageScatterPlot series={scatterPlotSeries} />
+                        :
+                        <Skeleton variant="rounded" />
+                    }
+                </Grid>
                 <Grid size={{ xs: 12, md: 12 }}>
                     <Paper sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
                         <FormControl size="small" sx={{ minWidth: 260 }}>
@@ -371,24 +388,6 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                             </Table>
                         </TableContainer>
                     </Paper>
-                </Grid>
-
-                <Grid size={{ xs: 12, sm: 12, lg: 8, xl: 4 }} >
-                    <PlayerDamagePieChart chartData={damagePieChartData} />
-                </Grid>
-                <Grid size={{ xs: 12, sm: 12, lg: 12, xl: 8 }} >
-                    {(damageOverTimeData && graphLargestDamageInstance && graphBands.length) ?
-                        <DecoratedDamageOverTimeLineGraph chartData={damageOverTimeData} bands={graphBands} largestDamageInstance={graphLargestDamageInstance} start_ut={start_ut} />
-                        :
-                        <Skeleton variant="rounded" />
-                    }
-                </Grid>
-                <Grid size={{ xs: 12, sm: 12, lg: 12, xl: 12 }} >
-                    {(damageOverTimeData && graphLargestDamageInstance && graphBands.length) ?
-                        <DamageScatterPlot series={scatterPlotSeries} />
-                        :
-                        <Skeleton variant="rounded" />
-                    }
                 </Grid>
                 <Grid size={12} >
                     {combinedDamageOverTimeData.length !== 0 ? (
