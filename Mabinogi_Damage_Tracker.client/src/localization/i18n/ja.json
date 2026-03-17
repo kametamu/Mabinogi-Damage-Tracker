@@ -36,7 +36,9 @@
     "noAdapterSaved": "保存済みアダプターがありません",
     "restartParse": "解析の再起動",
     "restartDescription": "パーサーサービスを再起動します",
-    "restart": "再起動"
+    "restart": "再起動",
+    "skillUsageTopN": "スキル使用 Top N",
+    "skillUsageTopNDescription": "スキル使用割合チャートで表示するスキル数の初期値を設定し、残りは「その他」にまとめます。"
   },
   "live": {
     "title": "リアルタイム",
@@ -59,7 +61,9 @@
     "damageBySkill": "スキル別ダメージ",
     "skillPlayerFilter": "プレイヤー",
     "allPlayers": "全プレイヤー",
-    "skill": "スキル"
+    "skill": "スキル",
+    "skillUsageTopN": "表示スキル数",
+    "otherSkills": "その他"
   },
   "players": {
     "title": "プレイヤー",

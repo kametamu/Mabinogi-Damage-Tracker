@@ -22,6 +22,7 @@ export default function SettingsMenu() {
     const { pollingRate, setPollingRate } = useContext(AppContext);
     const { burstCount, setBurstCount } = useContext(AppContext);
     const { largestDamageInstanceCount, setLargestDamageInstantCount } = useContext(AppContext);
+    const { skillUsageTopN, setSkillUsageTopN } = useContext(AppContext);
     const [themeChecked, setThemeChecked] = useState(mode === 'dark' ? true : false);
     const [adapters, setAdapters] = useState([]);
     const [selectedAdapter, setSelectedAdapter] = useState('');
@@ -137,6 +138,25 @@ export default function SettingsMenu() {
                     onValueChange={(value) => {
                         setLargestDamageInstantCount(value);
                     }} />
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Box>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.skillUsageTopN')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.skillUsageTopNDescription')}</Typography>
+                </Box>
+                <FormControl sx={{ m: 1, minWidth: 180 }}>
+                    <InputLabel id="skill-usage-top-n-settings-label">{t('settings.skillUsageTopN')}</InputLabel>
+                    <Select
+                        labelId="skill-usage-top-n-settings-label"
+                        value={skillUsageTopN}
+                        label={t('settings.skillUsageTopN')}
+                        onChange={(event) => setSkillUsageTopN(Number(event.target.value))}
+                    >
+                        {[5, 10, 15, 20, 30].map((value) => (
+                            <MenuItem key={value} value={value}>{value}</MenuItem>
+                        ))}
+                    </Select>
+                </FormControl>
             </Box>
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>

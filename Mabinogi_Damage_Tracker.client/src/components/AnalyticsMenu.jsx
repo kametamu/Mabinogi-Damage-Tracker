@@ -10,12 +10,7 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
-import Table from '@mui/material/Table';
-import TableHead from '@mui/material/TableHead';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableRow from '@mui/material/TableRow';
+import { DataGrid } from '@mui/x-data-grid';
 import DamageCard from './DamageCard';
 import PlayerCountCard from './PlayerCountCard';
 import TimeCard from './TimeCard';
@@ -77,7 +72,7 @@ function formatLargeNumber(num) {
 
 export default function AnalyticsMenu({ start_ut, end_ut }) {
     const { t, i18n } = useTranslation();
-    const { burstCount, largestDamageInstanceCount } = useContext(AppContext)
+    const { burstCount, largestDamageInstanceCount, skillUsageTopN } = useContext(AppContext)
     const [damageOverTimeData, setDamageOverTimeData] = useState([])
     const [damagePieChartData, setDamagePieChartData] = useState([])
     const [combinedDamageOverTimeData, setCombinedDamageOverTimeData] = useState([])
@@ -92,6 +87,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
     const [skillDamagesRaw, setSkillDamagesRaw] = useState([]);
     const [selectedSkillPlayerId, setSelectedSkillPlayerId] = useState('all');
+    const [skillUsageTopNLocal, setSkillUsageTopNLocal] = useState(skillUsageTopN);
 
     useEffect(() => {
         async function getDamageBands() {
@@ -232,6 +228,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
         getDamageBands()
     }, [start_ut, end_ut, burstCount, largestDamageInstanceCount]);
 
+    useEffect(() => {
+        setSkillUsageTopNLocal(skillUsageTopN);
+    }, [skillUsageTopN]);
+
     const skillPlayerOptions = useMemo(() => {
         const map = new Map();
         skillDamagesRaw.forEach((row) => {
@@ -254,14 +254,32 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             usageMap.set(skillId, (usageMap.get(skillId) || 0) + 1);
         });
 
-        return Array.from(usageMap.entries())
+        const sortedSkills = Array.from(usageMap.entries())
             .map(([skillId, count]) => ({
                 label: getLocalizedSkillName(skillId, null, i18n.language),
                 value: count,
                 skillId,
             }))
             .sort((a, b) => b.value - a.value);
-    }, [filteredSkillDamages, i18n.language]);
+
+        if (sortedSkills.length <= skillUsageTopNLocal) {
+            return sortedSkills;
+        }
+
+        const topSkills = sortedSkills.slice(0, skillUsageTopNLocal);
+        const otherValue = sortedSkills
+            .slice(skillUsageTopNLocal)
+            .reduce((sum, item) => sum + item.value, 0);
+
+        return [
+            ...topSkills,
+            {
+                label: t('analytics.otherSkills'),
+                value: otherValue,
+                skillId: 'other',
+            },
+        ];
+    }, [filteredSkillDamages, i18n.language, skillUsageTopNLocal, t]);
 
     const damageBySkillRows = useMemo(() => {
         const damageMap = new Map();
@@ -279,6 +297,24 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             }))
             .sort((a, b) => b.totalDamage - a.totalDamage);
     }, [filteredSkillDamages, i18n.language]);
+
+    const paginatedDamageBySkillRows = useMemo(() => damageBySkillRows.map((row) => ({
+        id: row.skillId,
+        ...row,
+    })), [damageBySkillRows]);
+
+    const damageBySkillColumns = useMemo(() => ([
+        { field: 'skillName', headerName: t('analytics.skill'), flex: 1, minWidth: 200, sortable: false },
+        {
+            field: 'totalDamage',
+            headerName: t('common.totalDamage'),
+            type: 'number',
+            width: 200,
+            align: 'right',
+            headerAlign: 'right',
+            valueFormatter: (value) => formatLargeNumber(value),
+        },
+    ]), [t]);
 
     return (
         <Box>
@@ -343,7 +379,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                 </Grid>
                 <Grid size={{ xs: 12, md: 12 }}>
                     <Paper sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
-                        <FormControl size="small" sx={{ minWidth: 260 }}>
+                        <FormControl size="small" sx={{ minWidth: 220 }}>
                             <InputLabel id="skill-player-filter-label">{t('analytics.skillPlayerFilter')}</InputLabel>
                             <Select
                                 labelId="skill-player-filter-label"
@@ -354,6 +390,19 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                                 <MenuItem value="all">{t('analytics.allPlayers')}</MenuItem>
                                 {skillPlayerOptions.map((player) => (
                                     <MenuItem key={player.id} value={player.id}>{`${player.name} (${player.id})`}</MenuItem>
+                                ))}
+                            </Select>
+                        </FormControl>
+                        <FormControl size="small" sx={{ minWidth: 160, ml: 2 }}>
+                            <InputLabel id="skill-top-n-filter-label">{t('analytics.skillUsageTopN')}</InputLabel>
+                            <Select
+                                labelId="skill-top-n-filter-label"
+                                value={skillUsageTopNLocal}
+                                label={t('analytics.skillUsageTopN')}
+                                onChange={(event) => setSkillUsageTopNLocal(Number(event.target.value))}
+                            >
+                                {[5, 10, 15, 20, 30].map((value) => (
+                                    <MenuItem key={value} value={value}>{value}</MenuItem>
                                 ))}
                             </Select>
                         </FormControl>
@@ -369,24 +418,20 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                 <Grid size={{ xs: 12, sm: 12, lg: 4, xl: 8 }}>
                     <Paper square={false} sx={{ p: 2, height: '100%' }}>
                         <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.damageBySkill')}</Typography>
-                        <TableContainer>
-                            <Table size="small">
-                                <TableHead>
-                                    <TableRow>
-                                        <TableCell>{t('analytics.skill')}</TableCell>
-                                        <TableCell align="right">{t('common.totalDamage')}</TableCell>
-                                    </TableRow>
-                                </TableHead>
-                                <TableBody>
-                                    {damageBySkillRows.map((row) => (
-                                        <TableRow key={row.skillId}>
-                                            <TableCell>{row.skillName}</TableCell>
-                                            <TableCell align="right">{formatLargeNumber(row.totalDamage)}</TableCell>
-                                        </TableRow>
-                                    ))}
-                                </TableBody>
-                            </Table>
-                        </TableContainer>
+                        <DataGrid
+                            rows={paginatedDamageBySkillRows}
+                            columns={damageBySkillColumns}
+                            pageSizeOptions={[5, 10, 20, 30, 60]}
+                            disableColumnResize
+                            disableRowSelectionOnClick
+                            initialState={{
+                                pagination: { paginationModel: { page: 0, pageSize: 10 } },
+                                sorting: {
+                                    sortModel: [{ field: 'totalDamage', sort: 'desc' }],
+                                },
+                            }}
+                            sx={{ border: 1, borderColor: 'divider' }}
+                        />
                     </Paper>
                 </Grid>
                 <Grid size={12} >
