@@ -341,14 +341,6 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         <Skeleton variant="rounded" />
                     }
                 </Grid>
-                <Grid size={12} >
-                    {combinedDamageOverTimeData.length !== 0 ? (
-                        <TrimLineGraph chartData={combinedDamageOverTimeData} start_ut={start_ut} end_ut={end_ut} />
-                    ) : (
-                        <Skeleton variant="rounded" />
-                    )
-                    }
-                </Grid>
                 <Grid size={{ xs: 12, md: 12 }}>
                     <Paper sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
                         <FormControl size="small" sx={{ minWidth: 260 }}>
@@ -396,6 +388,14 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                             </Table>
                         </TableContainer>
                     </Paper>
+                </Grid>
+                <Grid size={12} >
+                    {combinedDamageOverTimeData.length !== 0 ? (
+                        <TrimLineGraph chartData={combinedDamageOverTimeData} start_ut={start_ut} end_ut={end_ut} />
+                    ) : (
+                        <Skeleton variant="rounded" />
+                    )
+                    }
                 </Grid>
             </Grid>
         </Box >
