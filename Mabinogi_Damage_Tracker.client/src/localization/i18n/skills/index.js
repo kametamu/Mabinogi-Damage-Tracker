@@ -21,5 +21,9 @@ export function getLocalizedSkillName(skillId, fallbackName, language) {
     return fallbackName;
   }
 
+  if (skillId !== null && skillId !== undefined) {
+    return `Unknown Skill (${skillId})`;
+  }
+
   return 'Unknown Skill';
 }

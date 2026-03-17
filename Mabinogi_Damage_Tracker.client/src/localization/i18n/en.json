@@ -54,7 +54,12 @@
     "largestBurst": "Largest {{label}} burst",
     "startedAt": "Started at {{time}}",
     "damageScatterPlot": "Damage Scatter Plot",
-    "damageBands": "Damage Bands"
+    "damageBands": "Damage Bands",
+    "skillUsageRatio": "Skill Usage Ratio",
+    "damageBySkill": "Damage by Skill",
+    "skillPlayerFilter": "Player",
+    "allPlayers": "All Players",
+    "skill": "Skill"
   },
   "players": {
     "title": "Players",
