@@ -213,8 +213,16 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
         fetch(`http://${window.location.hostname}:5004/Home/GetSkillDamagesBetweenUt?start_ut=${start_ut}&end_ut=${end_ut}`)
             .then(response => response.json())
             .then(data => {
-                setSkillDamagesRaw(data ?? []);
-                setSelectedSkillPlayerId('all');
+                const nextData = data ?? [];
+                setSkillDamagesRaw(nextData);
+                setSelectedSkillPlayerId((prevSelectedPlayerId) => {
+                    if (prevSelectedPlayerId === 'all') {
+                        return 'all';
+                    }
+
+                    const availablePlayerIds = new Set(nextData.map((row) => String(row.player_id)));
+                    return availablePlayerIds.has(prevSelectedPlayerId) ? prevSelectedPlayerId : 'all';
+                });
             })
             .catch(error => {
                 console.error('Error:', error);
