@@ -54,7 +54,12 @@
     "largestBurst": "{{label}} バースト",
     "startedAt": "開始時刻 ：{{time}}",
     "damageScatterPlot": "ダメージ分布",
-    "damageBands": "ダメージ帯"
+    "damageBands": "ダメージ帯",
+    "skillUsageRatio": "スキル使用割合",
+    "damageBySkill": "スキル別ダメージ",
+    "skillPlayerFilter": "プレイヤー",
+    "allPlayers": "全プレイヤー",
+    "skill": "スキル"
   },
   "players": {
     "title": "プレイヤー",
