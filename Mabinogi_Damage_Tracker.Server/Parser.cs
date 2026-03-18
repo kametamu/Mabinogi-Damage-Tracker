@@ -21,6 +21,9 @@ namespace Mabinogi_Damage_tracker
         private const int MaxStreamBufferBytes = 256 * 1024;
         private const int MaxQueuedSegmentsPerStream = 64;
         private static readonly TimeSpan StreamIdleTimeout = TimeSpan.FromMinutes(2);
+        private const ushort TcpFlagFin = 0x01;
+        private const ushort TcpFlagSyn = 0x02;
+        private const ushort TcpFlagRst = 0x04;
 
         private static DateTime lastStreamCleanupUtc = DateTime.MinValue;
 
@@ -226,14 +229,20 @@ namespace Mabinogi_Damage_tracker
 
         private static void HandleConnectionLifecycleEvent(TcpStreamKey streamKey, TcpPacket tcp)
         {
-            if (!tcp.Fin && !tcp.Rst)
+            ushort tcpFlags = tcp.Flags;
+            ushort teardownFlags = (ushort)(TcpFlagFin | TcpFlagSyn | TcpFlagRst);
+            if ((tcpFlags & teardownFlags) == 0)
             {
                 return;
             }
 
             if (tcpStreams.Remove(streamKey))
             {
-                string flag = tcp.Rst ? "RST" : "FIN";
+                string flag = (tcpFlags & TcpFlagRst) != 0
+                    ? "RST"
+                    : (tcpFlags & TcpFlagSyn) != 0
+                        ? "SYN"
+                        : "FIN";
                 LogsController.WriteLog($"[TCP] Stream removed on {flag} for {streamKey}");
             }
         }
