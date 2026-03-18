@@ -20,6 +20,9 @@ namespace Mabinogi_Damage_tracker
         private const int MaxGameSubPacketLength = 2000;
         private const int MaxStreamBufferBytes = 256 * 1024;
         private const int MaxQueuedSegmentsPerStream = 64;
+        private static readonly TimeSpan StreamIdleTimeout = TimeSpan.FromMinutes(2);
+
+        private static DateTime lastStreamCleanupUtc = DateTime.MinValue;
 
         private readonly record struct TcpStreamKey(string SourceIp, int SourcePort, string DestinationIp, int DestinationPort)
         {
@@ -31,6 +34,7 @@ namespace Mabinogi_Damage_tracker
             public List<byte> Buffer { get; } = new List<byte>();
             public SortedDictionary<uint, byte[]> PendingSegments { get; } = new SortedDictionary<uint, byte[]>();
             public uint? NextSequence { get; set; }
+            public DateTime LastSeenUtc { get; set; }
         }
 
         static CaptureFileWriterDevice captureFileWriter = new CaptureFileWriterDevice("out.pcapng");
@@ -172,10 +176,13 @@ namespace Mabinogi_Damage_tracker
             TcpPacket tcp = packet.Extract<TcpPacket>();
             IPPacket ip = packet.Extract<IPPacket>();
 
-            if (tcp == null || ip == null || tcp.PayloadData == null || tcp.PayloadData.Length == 0)
+            if (tcp == null || ip == null)
             {
                 return;
             }
+
+            DateTime nowUtc = DateTime.UtcNow;
+            CleanupIdleStreams(nowUtc);
 
             TcpStreamKey streamKey = new TcpStreamKey(
                 ip.SourceAddress.ToString(),
@@ -183,20 +190,72 @@ namespace Mabinogi_Damage_tracker
                 ip.DestinationAddress.ToString(),
                 tcp.DestinationPort);
 
-            ProcessTcpSegment(streamKey, tcp.PayloadData, (uint)tcp.SequenceNumber);
+            bool hasPayload = tcp.PayloadData != null && tcp.PayloadData.Length > 0;
+            if (hasPayload)
+            {
+                ProcessTcpSegment(streamKey, tcp.PayloadData, (uint)tcp.SequenceNumber, nowUtc);
+            }
+
+            HandleConnectionLifecycleEvent(streamKey, tcp);
         }
 
-        private static void ProcessTcpSegment(TcpStreamKey streamKey, byte[] payload, uint sequenceNumber)
+        private static void ProcessTcpSegment(TcpStreamKey streamKey, byte[] payload, uint sequenceNumber, DateTime nowUtc)
+        {
+            TcpStreamState streamState = GetOrCreateStream(streamKey, nowUtc);
+            streamState.LastSeenUtc = nowUtc;
+
+            AppendTcpPayload(streamKey, streamState, sequenceNumber, payload);
+            ParseReassembledStream(streamKey, streamState);
+        }
+
+
+        private static TcpStreamState GetOrCreateStream(TcpStreamKey streamKey, DateTime nowUtc)
         {
             if (!tcpStreams.TryGetValue(streamKey, out TcpStreamState? streamState))
             {
-                streamState = new TcpStreamState();
+                streamState = new TcpStreamState
+                {
+                    LastSeenUtc = nowUtc
+                };
                 tcpStreams[streamKey] = streamState;
                 LogsController.WriteLog($"[TCP] New stream created {streamKey}");
             }
 
-            AppendTcpPayload(streamKey, streamState, sequenceNumber, payload);
-            ParseReassembledStream(streamKey, streamState);
+            return streamState;
+        }
+
+        private static void HandleConnectionLifecycleEvent(TcpStreamKey streamKey, TcpPacket tcp)
+        {
+            if (!tcp.Fin && !tcp.Rst)
+            {
+                return;
+            }
+
+            if (tcpStreams.Remove(streamKey))
+            {
+                string flag = tcp.Rst ? "RST" : "FIN";
+                LogsController.WriteLog($"[TCP] Stream removed on {flag} for {streamKey}");
+            }
+        }
+
+        private static void CleanupIdleStreams(DateTime nowUtc)
+        {
+            if (nowUtc - lastStreamCleanupUtc < TimeSpan.FromSeconds(30))
+            {
+                return;
+            }
+
+            lastStreamCleanupUtc = nowUtc;
+            List<TcpStreamKey> expiredKeys = tcpStreams
+                .Where(stream => nowUtc - stream.Value.LastSeenUtc > StreamIdleTimeout)
+                .Select(stream => stream.Key)
+                .ToList();
+
+            foreach (TcpStreamKey expiredKey in expiredKeys)
+            {
+                tcpStreams.Remove(expiredKey);
+                LogsController.WriteLog($"[TCP] Idle stream expired {expiredKey}");
+            }
         }
 
         private static void AppendTcpPayload(TcpStreamKey streamKey, TcpStreamState streamState, uint sequenceNumber, byte[] payload)
