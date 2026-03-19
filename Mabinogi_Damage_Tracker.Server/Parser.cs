@@ -654,7 +654,7 @@ namespace Mabinogi_Damage_tracker
                                 payloadData,
                                 matchSource,
                                 filterResult: "pending",
-                                currentEntityRole)));
+                                currentEntityRole));
                     }
 
                     if ((subsub_ttype & 2) != 0)
