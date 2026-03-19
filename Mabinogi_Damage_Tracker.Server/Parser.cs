@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.IO;
 
 namespace Mabinogi_Damage_tracker
 {
@@ -20,10 +21,14 @@ namespace Mabinogi_Damage_tracker
         private const int MaxGameSubPacketLength = 2000;
         private const int MaxStreamBufferBytes = 256 * 1024;
         private const int MaxQueuedSegmentsPerStream = 64;
+        private const ushort TrackedStardustBlast = 58100;
+        private const ushort TrackedStardustFlare = 58101;
+        private const ushort TrackedRedoubledOffensive = 58009;
         private static readonly TimeSpan StreamIdleTimeout = TimeSpan.FromMinutes(2);
         private const ushort TcpFlagFin = 0x01;
         private const ushort TcpFlagSyn = 0x02;
         private const ushort TcpFlagRst = 0x04;
+        private static readonly object combatDebugLogLock = new object();
 
         private static DateTime lastStreamCleanupUtc = DateTime.MinValue;
 
@@ -567,6 +572,8 @@ namespace Mabinogi_Damage_tracker
                 SkillId skill = 0;
                 SkillId subskill = 0;
                 string throwawaypacket = "";
+                const ulong MinPlayerId = 0x0010000000000001;
+                const ulong MaxPlayerId = 0x0010010000000001;
 
                 for (int i = 0; i < subsub_packet_count; i++)
                 {
@@ -607,6 +614,45 @@ namespace Mabinogi_Damage_tracker
                     cursor += sizeof(UInt16);
                     _ = subsub_unk1;
 
+                    bool isTrackedStardust = IsTrackedStardustSkill(skillid, subskillid);
+                    bool isTrackedRedoubledOffensive = IsTrackedRedoubledOffensiveSkill(skillid, subskillid);
+                    string? debugCategory = isTrackedStardust
+                        ? "stardust"
+                        : isTrackedRedoubledOffensive
+                            ? "redoubled_offensive"
+                            : null;
+                    string? debugLogPath = GetDebugLogPathForTrackedSkill(skillid, subskillid);
+                    string matchSource = GetTrackedSkillMatchSource(skillid, subskillid);
+                    bool isTrackedCandidate = debugCategory != null && debugLogPath != null;
+
+                    if (isTrackedCandidate)
+                    {
+                        WriteCombatInvestigationLog(
+                            debugLogPath,
+                            FormatCombatDebugRecord(
+                                debugCategory,
+                                "candidate_before_drop",
+                                attacker_id,
+                                enemy_id,
+                                entityID,
+                                skillid,
+                                subskillid,
+                                actionpack_id,
+                                prev_actionpack_id,
+                                combatActionID,
+                                damage: null,
+                                wound: null,
+                                manaDamage: null,
+                                options: null,
+                                subsub_ttype,
+                                cursor,
+                                subsub_pack_start_cursor,
+                                subsubPackLen,
+                                payloadData,
+                                matchSource,
+                                filterResult: "pending")));
+                    }
+
                     if ((subsub_ttype & 2) != 0)
                     {
                         attacker_id = entityID;
@@ -641,7 +687,37 @@ namespace Mabinogi_Damage_tracker
                             Debug.WriteLine("multiline found saving packet");
                         }
 
-                        if (attacker_id < 0x0010000000000001 || attacker_id > 0x0010010000000001)
+                        bool attackerInPlayerRange = attacker_id >= MinPlayerId && attacker_id <= MaxPlayerId;
+
+                        if (isTrackedCandidate)
+                        {
+                            WriteCombatInvestigationLog(
+                                debugLogPath,
+                                FormatCombatDebugRecord(
+                                    debugCategory,
+                                    attackerInPlayerRange ? "matched_skill" : "attacker_out_of_range",
+                                    attacker_id,
+                                    enemy_id,
+                                    entityID,
+                                    skillid,
+                                    subskillid,
+                                    actionpack_id,
+                                    prev_actionpack_id,
+                                    combatActionID,
+                                    damage,
+                                    wound,
+                                    manaDamage,
+                                    options,
+                                    subsub_ttype,
+                                    cursor,
+                                    subsub_pack_start_cursor,
+                                    subsubPackLen,
+                                    payloadData,
+                                    matchSource,
+                                    attackerInPlayerRange ? "passed" : "failed"));
+                        }
+
+                        if (!attackerInPlayerRange)
                         { break; }
 
                         if (damage < 0 || damage > 100000000 || skillid == 601 || skillid == 512 || skillid == 590) { break; }
@@ -663,6 +739,138 @@ namespace Mabinogi_Damage_tracker
             {
                 cursor = sub_packet_length + begining_of_packet_cursor;
                 Debug.WriteLine("caught an execption after finding a damage packet: ex {0}", ex.ToString());
+            }
+        }
+
+        private static bool IsTrackedStardustSkill(ushort skillid, ushort subskillid)
+        {
+            return skillid == TrackedStardustBlast
+                || subskillid == TrackedStardustBlast
+                || skillid == TrackedStardustFlare
+                || subskillid == TrackedStardustFlare;
+        }
+
+        private static bool IsTrackedRedoubledOffensiveSkill(ushort skillid, ushort subskillid)
+        {
+            return skillid == TrackedRedoubledOffensive || subskillid == TrackedRedoubledOffensive;
+        }
+
+        private static string? GetDebugLogPathForTrackedSkill(ushort skillid, ushort subskillid)
+        {
+            if (IsTrackedStardustSkill(skillid, subskillid))
+            {
+                return Path.Combine(AppContext.BaseDirectory, "debug_stardust.log");
+            }
+
+            if (IsTrackedRedoubledOffensiveSkill(skillid, subskillid))
+            {
+                return Path.Combine(AppContext.BaseDirectory, "debug_redoubled_offensive.log");
+            }
+
+            return null;
+        }
+
+        private static string GetTrackedSkillMatchSource(ushort skillid, ushort subskillid)
+        {
+            bool skillMatched = IsTrackedStardustSkill(skillid, 0) || IsTrackedRedoubledOffensiveSkill(skillid, 0);
+            bool subskillMatched = IsTrackedStardustSkill(0, subskillid) || IsTrackedRedoubledOffensiveSkill(0, subskillid);
+
+            if (skillMatched && subskillMatched)
+            {
+                return "skillid+subskillid";
+            }
+
+            if (skillMatched)
+            {
+                return "skillid";
+            }
+
+            if (subskillMatched)
+            {
+                return "subskillid";
+            }
+
+            return "none";
+        }
+
+        private static void WriteCombatInvestigationLog(string? path, string message)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            try
+            {
+                lock (combatDebugLogLock)
+                {
+                    File.AppendAllText(path, message + Environment.NewLine, Encoding.UTF8);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to write combat debug log '{path}': {ex}");
+            }
+        }
+
+        private static string FormatCombatDebugRecord(
+            string category,
+            string reason,
+            ulong attacker_id,
+            ulong enemy_id,
+            ulong entityID,
+            ushort skillid,
+            ushort subskillid,
+            uint actionpack_id,
+            uint prev_actionpack_id,
+            uint combatActionID,
+            float? damage,
+            float? wound,
+            uint? manaDamage,
+            uint? options,
+            byte subsub_ttype,
+            int packetCursor,
+            int subsubPacketCursor,
+            uint subsubPackLen,
+            ReadOnlySpan<byte> payloadData,
+            string matchSource,
+            string filterResult)
+        {
+            string timestamp = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff");
+            string hexPreview = GetHexPreview(payloadData, subsubPacketCursor, subsubPackLen, 64);
+
+            return $"{timestamp} category={category} reason={reason} opcode=CombatActionPack match={matchSource} filter={filterResult} " +
+                   $"attacker_id={attacker_id} enemy_id={enemy_id} entityID={entityID} skillid={skillid} subskillid={subskillid} " +
+                   $"actionpack_id={actionpack_id} prev_actionpack_id={prev_actionpack_id} combatActionID={combatActionID} " +
+                   $"damage={(damage.HasValue ? damage.Value.ToString("0.###") : "null")} wound={(wound.HasValue ? wound.Value.ToString("0.###") : "null")} " +
+                   $"manaDamage={(manaDamage.HasValue ? manaDamage.Value.ToString() : "null")} options={(options.HasValue ? $"0x{options.Value:X8}" : "null")} " +
+                   $"subsub_ttype=0x{subsub_ttype:X2} packet_cursor={packetCursor} subsub_packet_cursor={subsubPacketCursor} subsub_packet_len={subsubPackLen} " +
+                   $"hex_preview=\"{hexPreview}\"";
+        }
+
+        private static string GetHexPreview(ReadOnlySpan<byte> payloadData, int start, uint packetLength, int maxPreviewBytes)
+        {
+            try
+            {
+                if (start < 0 || start >= payloadData.Length)
+                {
+                    return string.Empty;
+                }
+
+                int boundedLength = (int)Math.Min(packetLength, (uint)maxPreviewBytes);
+                boundedLength = Math.Min(boundedLength, payloadData.Length - start);
+                if (boundedLength <= 0)
+                {
+                    return string.Empty;
+                }
+
+                byte[] previewBytes = payloadData.Slice(start, boundedLength).ToArray();
+                return BitConverter.ToString(previewBytes).Replace("-", " ");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to build combat debug hex preview: {ex}");
+                return string.Empty;
             }
         }
 
