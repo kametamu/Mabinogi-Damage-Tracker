@@ -623,6 +623,9 @@ namespace Mabinogi_Damage_tracker
                             : null;
                     string? debugLogPath = GetDebugLogPathForTrackedSkill(skillid, subskillid);
                     string matchSource = GetTrackedSkillMatchSource(skillid, subskillid);
+                    string currentEntityRole = GetCombatEntityRole(subsub_ttype);
+                    UInt64 currentCandidateAttackerId = GetCandidateAttackerId(attacker_id, entityID, subsub_ttype);
+                    UInt64 currentCandidateEnemyId = GetCandidateEnemyId(enemy_id, entityID, subsub_ttype);
                     bool isTrackedCandidate = debugCategory != null && debugLogPath != null;
 
                     if (isTrackedCandidate)
@@ -632,8 +635,8 @@ namespace Mabinogi_Damage_tracker
                             FormatCombatDebugRecord(
                                 debugCategory,
                                 "candidate_before_drop",
-                                attacker_id,
-                                enemy_id,
+                                currentCandidateAttackerId,
+                                currentCandidateEnemyId,
                                 entityID,
                                 skillid,
                                 subskillid,
@@ -650,7 +653,8 @@ namespace Mabinogi_Damage_tracker
                                 subsubPackLen,
                                 payloadData,
                                 matchSource,
-                                filterResult: "pending")));
+                                filterResult: "pending",
+                                currentEntityRole)));
                     }
 
                     if ((subsub_ttype & 2) != 0)
@@ -695,7 +699,7 @@ namespace Mabinogi_Damage_tracker
                                 debugLogPath,
                                 FormatCombatDebugRecord(
                                     debugCategory,
-                                    attackerInPlayerRange ? "matched_skill" : "attacker_out_of_range",
+                                    attackerInPlayerRange ? GetTrackedSkillReason(matchSource) : "attacker_out_of_range",
                                     attacker_id,
                                     enemy_id,
                                     entityID,
@@ -714,7 +718,8 @@ namespace Mabinogi_Damage_tracker
                                     subsubPackLen,
                                     payloadData,
                                     matchSource,
-                                    attackerInPlayerRange ? "passed" : "failed"));
+                                    attackerInPlayerRange ? "passed" : "failed",
+                                    currentEntityRole));
                         }
 
                         if (!attackerInPlayerRange)
@@ -793,6 +798,16 @@ namespace Mabinogi_Damage_tracker
             return "none";
         }
 
+        private static string GetTrackedSkillReason(string matchSource)
+        {
+            return matchSource switch
+            {
+                "skillid+subskillid" => "matched_skill_and_subskill",
+                "subskillid" => "matched_subskill",
+                _ => "matched_skill"
+            };
+        }
+
         private static void WriteCombatInvestigationLog(string? path, string message)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -834,7 +849,8 @@ namespace Mabinogi_Damage_tracker
             uint subsubPackLen,
             ReadOnlySpan<byte> payloadData,
             string matchSource,
-            string filterResult)
+            string filterResult,
+            string currentEntityRole)
         {
             string timestamp = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff");
             string hexPreview = GetHexPreview(payloadData, subsubPacketCursor, subsubPackLen, 64);
@@ -844,8 +860,41 @@ namespace Mabinogi_Damage_tracker
                    $"actionpack_id={actionpack_id} prev_actionpack_id={prev_actionpack_id} combatActionID={combatActionID} " +
                    $"damage={(damage.HasValue ? damage.Value.ToString("0.###") : "null")} wound={(wound.HasValue ? wound.Value.ToString("0.###") : "null")} " +
                    $"manaDamage={(manaDamage.HasValue ? manaDamage.Value.ToString() : "null")} options={(options.HasValue ? $"0x{options.Value:X8}" : "null")} " +
-                   $"subsub_ttype=0x{subsub_ttype:X2} packet_cursor={packetCursor} subsub_packet_cursor={subsubPacketCursor} subsub_packet_len={subsubPackLen} " +
+                   $"subsub_ttype=0x{subsub_ttype:X2} current_entity_role={currentEntityRole} packet_cursor={packetCursor} subsub_packet_cursor={subsubPacketCursor} subsub_packet_len={subsubPackLen} " +
                    $"hex_preview=\"{hexPreview}\"";
+        }
+
+        private static string GetCombatEntityRole(byte subsub_ttype)
+        {
+            bool isAttacker = (subsub_ttype & 2) != 0;
+            bool isEnemy = (subsub_ttype & 1) != 0;
+
+            if (isAttacker && isEnemy)
+            {
+                return "attacker+enemy";
+            }
+
+            if (isAttacker)
+            {
+                return "attacker";
+            }
+
+            if (isEnemy)
+            {
+                return "enemy";
+            }
+
+            return "unknown";
+        }
+
+        private static UInt64 GetCandidateAttackerId(UInt64 previousAttackerId, UInt64 entityID, byte subsub_ttype)
+        {
+            return (subsub_ttype & 2) != 0 ? entityID : previousAttackerId;
+        }
+
+        private static UInt64 GetCandidateEnemyId(UInt64 previousEnemyId, UInt64 entityID, byte subsub_ttype)
+        {
+            return (subsub_ttype & 1) != 0 ? entityID : previousEnemyId;
         }
 
         private static string GetHexPreview(ReadOnlySpan<byte> payloadData, int start, uint packetLength, int maxPreviewBytes)
