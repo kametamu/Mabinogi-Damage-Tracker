@@ -21,14 +21,12 @@ namespace Mabinogi_Damage_tracker
         private const int MaxGameSubPacketLength = 2000;
         private const int MaxStreamBufferBytes = 256 * 1024;
         private const int MaxQueuedSegmentsPerStream = 64;
-        private const ushort TrackedStardustBlast = 58100;
-        private const ushort TrackedStardustFlare = 58101;
-        private const ushort TrackedRedoubledOffensive = 58009;
         private static readonly TimeSpan StreamIdleTimeout = TimeSpan.FromMinutes(2);
         private const ushort TcpFlagFin = 0x01;
         private const ushort TcpFlagSyn = 0x02;
         private const ushort TcpFlagRst = 0x04;
         private static readonly object combatDebugLogLock = new object();
+        private static bool combatDebugProbeWritten = false;
 
         private static DateTime lastStreamCleanupUtc = DateTime.MinValue;
 
@@ -614,48 +612,10 @@ namespace Mabinogi_Damage_tracker
                     cursor += sizeof(UInt16);
                     _ = subsub_unk1;
 
-                    bool isTrackedStardust = IsTrackedStardustSkill(skillid, subskillid);
-                    bool isTrackedRedoubledOffensive = IsTrackedRedoubledOffensiveSkill(skillid, subskillid);
-                    string? debugCategory = isTrackedStardust
-                        ? "stardust"
-                        : isTrackedRedoubledOffensive
-                            ? "redoubled_offensive"
-                            : null;
-                    string? debugLogPath = GetDebugLogPathForTrackedSkill(skillid, subskillid);
-                    string matchSource = GetTrackedSkillMatchSource(skillid, subskillid);
+                    string debugLogPath = GetCombatDebugLogPath();
                     string currentEntityRole = GetCombatEntityRole(subsub_ttype);
                     UInt64 currentCandidateAttackerId = GetCandidateAttackerId(attacker_id, entityID, subsub_ttype);
                     UInt64 currentCandidateEnemyId = GetCandidateEnemyId(enemy_id, entityID, subsub_ttype);
-                    bool isTrackedCandidate = debugCategory != null && debugLogPath != null;
-
-                    if (isTrackedCandidate)
-                    {
-                        WriteCombatInvestigationLog(
-                            debugLogPath,
-                            FormatCombatDebugRecord(
-                                debugCategory,
-                                "candidate_before_drop",
-                                currentCandidateAttackerId,
-                                currentCandidateEnemyId,
-                                entityID,
-                                skillid,
-                                subskillid,
-                                actionpack_id,
-                                prev_actionpack_id,
-                                combatActionID,
-                                damage: null,
-                                wound: null,
-                                manaDamage: null,
-                                options: null,
-                                subsub_ttype,
-                                cursor,
-                                subsub_pack_start_cursor,
-                                subsubPackLen,
-                                payloadData,
-                                matchSource,
-                                filterResult: "pending",
-                                currentEntityRole));
-                    }
 
                     if ((subsub_ttype & 2) != 0)
                     {
@@ -692,40 +652,79 @@ namespace Mabinogi_Damage_tracker
                         }
 
                         bool attackerInPlayerRange = attacker_id >= MinPlayerId && attacker_id <= MaxPlayerId;
+                        WriteCombatInvestigationLog(
+                            debugLogPath,
+                            FormatCombatDebugRecord(
+                                "candidate_before_drop",
+                                currentCandidateAttackerId,
+                                currentCandidateEnemyId,
+                                entityID,
+                                skillid,
+                                subskillid,
+                                actionpack_id,
+                                prev_actionpack_id,
+                                combatActionID,
+                                damage,
+                                wound,
+                                manaDamage,
+                                options,
+                                subsub_ttype,
+                                cursor,
+                                subsub_pack_start_cursor,
+                                subsubPackLen,
+                                payloadData,
+                                currentEntityRole));
 
-                        if (isTrackedCandidate)
-                        {
-                            WriteCombatInvestigationLog(
-                                debugLogPath,
-                                FormatCombatDebugRecord(
-                                    debugCategory,
-                                    attackerInPlayerRange ? GetTrackedSkillReason(matchSource) : "attacker_out_of_range",
-                                    attacker_id,
-                                    enemy_id,
-                                    entityID,
-                                    skillid,
-                                    subskillid,
-                                    actionpack_id,
-                                    prev_actionpack_id,
-                                    combatActionID,
-                                    damage,
-                                    wound,
-                                    manaDamage,
-                                    options,
-                                    subsub_ttype,
-                                    cursor,
-                                    subsub_pack_start_cursor,
-                                    subsubPackLen,
-                                    payloadData,
-                                    matchSource,
-                                    attackerInPlayerRange ? "passed" : "failed",
-                                    currentEntityRole));
-                        }
+                        WriteCombatInvestigationLog(
+                            debugLogPath,
+                            FormatCombatDebugRecord(
+                                attackerInPlayerRange ? "damage_event" : "attacker_out_of_range",
+                                attacker_id,
+                                enemy_id,
+                                entityID,
+                                skillid,
+                                subskillid,
+                                actionpack_id,
+                                prev_actionpack_id,
+                                combatActionID,
+                                damage,
+                                wound,
+                                manaDamage,
+                                options,
+                                subsub_ttype,
+                                cursor,
+                                subsub_pack_start_cursor,
+                                subsubPackLen,
+                                payloadData,
+                                currentEntityRole));
 
                         if (!attackerInPlayerRange)
                         { break; }
 
                         if (damage < 0 || damage > 100000000 || skillid == 601 || skillid == 512 || skillid == 590) { break; }
+
+                        WriteCombatInvestigationLog(
+                            debugLogPath,
+                            FormatCombatDebugRecord(
+                                "saved_to_db",
+                                attacker_id,
+                                enemy_id,
+                                entityID,
+                                skillid,
+                                subskillid,
+                                actionpack_id,
+                                prev_actionpack_id,
+                                combatActionID,
+                                damage,
+                                wound,
+                                manaDamage,
+                                options,
+                                subsub_ttype,
+                                cursor,
+                                subsub_pack_start_cursor,
+                                subsubPackLen,
+                                payloadData,
+                                currentEntityRole));
 
                         LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker_id, enemy_id, damage));
                         Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, with {6} : {7}", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill);
@@ -747,65 +746,9 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
-        private static bool IsTrackedStardustSkill(ushort skillid, ushort subskillid)
+        private static string GetCombatDebugLogPath()
         {
-            return skillid == TrackedStardustBlast
-                || subskillid == TrackedStardustBlast
-                || skillid == TrackedStardustFlare
-                || subskillid == TrackedStardustFlare;
-        }
-
-        private static bool IsTrackedRedoubledOffensiveSkill(ushort skillid, ushort subskillid)
-        {
-            return skillid == TrackedRedoubledOffensive || subskillid == TrackedRedoubledOffensive;
-        }
-
-        private static string? GetDebugLogPathForTrackedSkill(ushort skillid, ushort subskillid)
-        {
-            if (IsTrackedStardustSkill(skillid, subskillid))
-            {
-                return Path.Combine(AppContext.BaseDirectory, "debug_stardust.log");
-            }
-
-            if (IsTrackedRedoubledOffensiveSkill(skillid, subskillid))
-            {
-                return Path.Combine(AppContext.BaseDirectory, "debug_redoubled_offensive.log");
-            }
-
-            return null;
-        }
-
-        private static string GetTrackedSkillMatchSource(ushort skillid, ushort subskillid)
-        {
-            bool skillMatched = IsTrackedStardustSkill(skillid, 0) || IsTrackedRedoubledOffensiveSkill(skillid, 0);
-            bool subskillMatched = IsTrackedStardustSkill(0, subskillid) || IsTrackedRedoubledOffensiveSkill(0, subskillid);
-
-            if (skillMatched && subskillMatched)
-            {
-                return "skillid+subskillid";
-            }
-
-            if (skillMatched)
-            {
-                return "skillid";
-            }
-
-            if (subskillMatched)
-            {
-                return "subskillid";
-            }
-
-            return "none";
-        }
-
-        private static string GetTrackedSkillReason(string matchSource)
-        {
-            return matchSource switch
-            {
-                "skillid+subskillid" => "matched_skill_and_subskill",
-                "subskillid" => "matched_subskill",
-                _ => "matched_skill"
-            };
+            return Path.Combine(AppContext.BaseDirectory, "debug_combat_actionpack_skills.log");
         }
 
         private static void WriteCombatInvestigationLog(string? path, string message)
@@ -819,6 +762,13 @@ namespace Mabinogi_Damage_tracker
             {
                 lock (combatDebugLogLock)
                 {
+                    if (!combatDebugProbeWritten)
+                    {
+                        string probeLine = $"{DateTime.Now:yyyy-MM-ddTHH:mm:ss.fff} probe=startup log_path=\"{path}\" base_directory=\"{AppContext.BaseDirectory}\"";
+                        File.AppendAllText(path, probeLine + Environment.NewLine, Encoding.UTF8);
+                        combatDebugProbeWritten = true;
+                    }
+
                     File.AppendAllText(path, message + Environment.NewLine, Encoding.UTF8);
                 }
             }
@@ -829,7 +779,6 @@ namespace Mabinogi_Damage_tracker
         }
 
         private static string FormatCombatDebugRecord(
-            string category,
             string reason,
             ulong attacker_id,
             ulong enemy_id,
@@ -848,14 +797,12 @@ namespace Mabinogi_Damage_tracker
             int subsubPacketCursor,
             uint subsubPackLen,
             ReadOnlySpan<byte> payloadData,
-            string matchSource,
-            string filterResult,
             string currentEntityRole)
         {
             string timestamp = DateTime.Now.ToString("yyyy-MM-ddTHH:mm:ss.fff");
             string hexPreview = GetHexPreview(payloadData, subsubPacketCursor, subsubPackLen, 64);
 
-            return $"{timestamp} category={category} reason={reason} opcode=CombatActionPack match={matchSource} filter={filterResult} " +
+            return $"{timestamp} reason={reason} opcode=CombatActionPack " +
                    $"attacker_id={attacker_id} enemy_id={enemy_id} entityID={entityID} skillid={skillid} subskillid={subskillid} " +
                    $"actionpack_id={actionpack_id} prev_actionpack_id={prev_actionpack_id} combatActionID={combatActionID} " +
                    $"damage={(damage.HasValue ? damage.Value.ToString("0.###") : "null")} wound={(wound.HasValue ? wound.Value.ToString("0.###") : "null")} " +
