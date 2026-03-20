@@ -433,7 +433,11 @@ namespace Mabinogi_Damage_tracker
                 consumedBytes += sizeof(UInt32);
 
                 ReadOnlySpan<byte> packetBytes = buffer;
-                ScanPacketForTargetSkillPatterns(packetBytes.Slice(beginningOfPacketCursor, (int)subPacketLength), opcode, subPacketLength, beginningOfPacketCursor);
+                int subPacketPayloadLength = beginningOfPacketCursor + (int)subPacketLength - consumedBytes;
+                if (subPacketPayloadLength > 0)
+                {
+                    ScanPacketForTargetSkillPatterns(packetBytes.Slice(consumedBytes, subPacketPayloadLength), opcode, subPacketLength, beginningOfPacketCursor);
+                }
                 switch (opcode)
                 {
                     case Op_Codes.healing:
