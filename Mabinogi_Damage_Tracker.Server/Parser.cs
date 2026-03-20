@@ -27,6 +27,23 @@ namespace Mabinogi_Damage_tracker
         private const ushort TcpFlagRst = 0x04;
         private static readonly object combatDebugLogLock = new object();
         private static bool combatDebugProbeWritten = false;
+        private static readonly object opcodeSkillHitLogLock = new object();
+        private static bool opcodeSkillHitProbeWritten = false;
+        private static readonly (ushort SkillId, string PatternType, byte[] PatternBytes)[] opcodeSkillHitPatterns = new[]
+        {
+            ((ushort)58009, "be16", new byte[] { 0xE2, 0x99 }),
+            ((ushort)58009, "le16", new byte[] { 0x99, 0xE2 }),
+            ((ushort)58009, "be32", new byte[] { 0x00, 0x00, 0xE2, 0x99 }),
+            ((ushort)58009, "le32", new byte[] { 0x99, 0xE2, 0x00, 0x00 }),
+            ((ushort)58100, "be16", new byte[] { 0xE2, 0xF4 }),
+            ((ushort)58100, "le16", new byte[] { 0xF4, 0xE2 }),
+            ((ushort)58100, "be32", new byte[] { 0x00, 0x00, 0xE2, 0xF4 }),
+            ((ushort)58100, "le32", new byte[] { 0xF4, 0xE2, 0x00, 0x00 }),
+            ((ushort)58101, "be16", new byte[] { 0xE2, 0xF5 }),
+            ((ushort)58101, "le16", new byte[] { 0xF5, 0xE2 }),
+            ((ushort)58101, "be32", new byte[] { 0x00, 0x00, 0xE2, 0xF5 }),
+            ((ushort)58101, "le32", new byte[] { 0xF5, 0xE2, 0x00, 0x00 }),
+        };
 
         private static DateTime lastStreamCleanupUtc = DateTime.MinValue;
 
@@ -416,6 +433,7 @@ namespace Mabinogi_Damage_tracker
                 consumedBytes += sizeof(UInt32);
 
                 ReadOnlySpan<byte> packetBytes = buffer;
+                ScanPacketForTargetSkillPatterns(packetBytes.Slice(beginningOfPacketCursor, (int)subPacketLength), opcode, subPacketLength, beginningOfPacketCursor);
                 switch (opcode)
                 {
                     case Op_Codes.healing:
@@ -765,6 +783,119 @@ namespace Mabinogi_Damage_tracker
             {
                 cursor = sub_packet_length + begining_of_packet_cursor;
                 Debug.WriteLine("caught an execption after finding a damage packet: ex {0}", ex.ToString());
+            }
+        }
+
+        private static string GetOpcodeSkillHitLogPath()
+        {
+            return Path.Combine(AppContext.BaseDirectory, "debug_opcode_skillid_hits.log");
+        }
+
+        private static void WriteOpcodeSkillHitLog(string path, string message)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            try
+            {
+                lock (opcodeSkillHitLogLock)
+                {
+                    if (!opcodeSkillHitProbeWritten)
+                    {
+                        string probeLine = $"{DateTime.Now:yyyy-MM-ddTHH:mm:ss.fff} probe=startup log_path=\"{path}\" base_directory=\"{AppContext.BaseDirectory}\"";
+                        File.AppendAllText(path, probeLine + Environment.NewLine, Encoding.UTF8);
+                        opcodeSkillHitProbeWritten = true;
+                    }
+
+                    File.AppendAllText(path, message + Environment.NewLine, Encoding.UTF8);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to write opcode skill hit log '{path}': {ex}");
+            }
+        }
+
+        private static void ScanPacketForTargetSkillPatterns(ReadOnlySpan<byte> subPacketBytes, uint opcode, uint subPacketLength, int beginningOfPacketCursor)
+        {
+            string logPath = GetOpcodeSkillHitLogPath();
+
+            foreach (var pattern in opcodeSkillHitPatterns)
+            {
+                foreach (int hitOffset in FindPatternOffsets(subPacketBytes, pattern.PatternBytes))
+                {
+                    WriteOpcodeSkillHitLog(
+                        logPath,
+                        FormatOpcodeSkillHitRecord(
+                            opcode,
+                            subPacketLength,
+                            pattern.SkillId,
+                            pattern.PatternType,
+                            hitOffset,
+                            beginningOfPacketCursor,
+                            GetBoundedHexPreviewAroundOffset(subPacketBytes, hitOffset, pattern.PatternBytes.Length, 16, 32)));
+                }
+            }
+        }
+
+        private static List<int> FindPatternOffsets(ReadOnlySpan<byte> buffer, byte[] pattern)
+        {
+            List<int> hitOffsets = new List<int>();
+            if (pattern.Length == 0 || buffer.Length < pattern.Length)
+            {
+                return hitOffsets;
+            }
+
+            for (int i = 0; i <= buffer.Length - pattern.Length; i++)
+            {
+                if (buffer.Slice(i, pattern.Length).SequenceEqual(pattern))
+                {
+                    hitOffsets.Add(i);
+                }
+            }
+
+            return hitOffsets;
+        }
+
+        private static string FormatOpcodeSkillHitRecord(
+            uint opcode,
+            uint subPacketLength,
+            ushort targetSkillId,
+            string patternType,
+            int hitOffset,
+            int beginningOfPacketCursor,
+            string hexPreview)
+        {
+            return $"{DateTime.Now:yyyy-MM-ddTHH:mm:ss.fff} reason=skillid_pattern_hit opcode={opcode} opcode_hex=0x{opcode:X8} " +
+                   $"subPacketLength={subPacketLength} target_skill_id={targetSkillId} pattern_type={patternType} hit_offset={hitOffset} " +
+                   $"beginningOfPacketCursor={beginningOfPacketCursor} hex_preview=\"{hexPreview}\"";
+        }
+
+        private static string GetBoundedHexPreviewAroundOffset(ReadOnlySpan<byte> buffer, int hitOffset, int matchLength, int bytesBefore, int bytesAfter)
+        {
+            try
+            {
+                if (hitOffset < 0 || hitOffset >= buffer.Length)
+                {
+                    return string.Empty;
+                }
+
+                int previewStart = Math.Max(0, hitOffset - bytesBefore);
+                int previewEndExclusive = Math.Min(buffer.Length, hitOffset + matchLength + bytesAfter);
+                int previewLength = previewEndExclusive - previewStart;
+                if (previewLength <= 0)
+                {
+                    return string.Empty;
+                }
+
+                return BitConverter.ToString(buffer.Slice(previewStart, previewLength).ToArray()).Replace("-", " ");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to build opcode skill hit preview: {ex}");
+                return string.Empty;
             }
         }
 
