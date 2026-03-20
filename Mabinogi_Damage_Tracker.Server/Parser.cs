@@ -29,6 +29,8 @@ namespace Mabinogi_Damage_tracker
         private static bool combatDebugProbeWritten = false;
         private static readonly object opcodeSkillHitLogLock = new object();
         private static bool opcodeSkillHitProbeWritten = false;
+        private static readonly object opcode9095LogLock = new object();
+        private static bool opcode9095ProbeWritten = false;
         private static readonly (ushort SkillId, string PatternType, byte[] PatternBytes)[] opcodeSkillHitPatterns = new[]
         {
             ((ushort)58009, "be16", new byte[] { 0xE2, 0x99 }),
@@ -64,6 +66,8 @@ namespace Mabinogi_Damage_tracker
         static bool savenextpacket = false;
         static BindingList<Name> character_names = new BindingList<Name>();
         static UInt64 last_healer = 0;
+        static UInt32? lastObservedCombatActionPackId = null;
+        static UInt32? lastObservedCombatActionId = null;
         public static string adapter_description;
         public static List<string> adapters = new List<string>();
         static Dictionary<TcpStreamKey, TcpStreamState> tcpStreams = new Dictionary<TcpStreamKey, TcpStreamState>();
@@ -433,10 +437,29 @@ namespace Mabinogi_Damage_tracker
                 consumedBytes += sizeof(UInt32);
 
                 ReadOnlySpan<byte> packetBytes = buffer;
+                ReadOnlySpan<byte> fullSubPacketBytes = packetBytes.Slice(beginningOfPacketCursor, (int)subPacketLength);
                 int subPacketPayloadLength = beginningOfPacketCursor + (int)subPacketLength - consumedBytes;
+                ReadOnlySpan<byte> subPacketPayloadBytes = subPacketPayloadLength > 0
+                    ? packetBytes.Slice(consumedBytes, subPacketPayloadLength)
+                    : ReadOnlySpan<byte>.Empty;
                 if (subPacketPayloadLength > 0)
                 {
-                    ScanPacketForTargetSkillPatterns(packetBytes.Slice(consumedBytes, subPacketPayloadLength), opcode, subPacketLength, beginningOfPacketCursor);
+                    ScanPacketForTargetSkillPatterns(subPacketPayloadBytes, opcode, subPacketLength, beginningOfPacketCursor);
+                }
+
+                if (opcode == 37013)
+                {
+                    WriteOpcode9095Log(
+                        GetOpcode9095LogPath(),
+                        FormatOpcode9095Record(
+                            opcode,
+                            subPacketLength,
+                            beginningOfPacketCursor,
+                            fullSubPacketBytes,
+                            subPacketPayloadBytes,
+                            GetPatternHitsForPacket(fullSubPacketBytes),
+                            lastObservedCombatActionPackId,
+                            lastObservedCombatActionId));
                 }
                 switch (opcode)
                 {
@@ -548,6 +571,7 @@ namespace Mabinogi_Damage_tracker
                 UInt32 actionpack_id = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
                 cursor += sizeof(UInt32);
                 _ = actionpack_id;
+                lastObservedCombatActionPackId = actionpack_id;
 
                 cursor++;
                 UInt32 prev_actionpack_id = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
@@ -607,6 +631,7 @@ namespace Mabinogi_Damage_tracker
                     UInt32 combatActionID = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
                     cursor += sizeof(UInt32);
                     _ = combatActionID;
+                    lastObservedCombatActionId = combatActionID;
 
                     cursor++;
                     UInt64 entityID = BinaryPrimitives.ReadUInt64BigEndian(payloadData.Slice(cursor));
@@ -795,6 +820,11 @@ namespace Mabinogi_Damage_tracker
             return Path.Combine(AppContext.BaseDirectory, "debug_opcode_skillid_hits.log");
         }
 
+        private static string GetOpcode9095LogPath()
+        {
+            return Path.Combine(AppContext.BaseDirectory, "debug_opcode_9095.log");
+        }
+
         private static void WriteOpcodeSkillHitLog(string path, string message)
         {
             if (string.IsNullOrWhiteSpace(path))
@@ -819,6 +849,33 @@ namespace Mabinogi_Damage_tracker
             catch (Exception ex)
             {
                 Debug.WriteLine($"Failed to write opcode skill hit log '{path}': {ex}");
+            }
+        }
+
+        private static void WriteOpcode9095Log(string path, string message)
+        {
+            if (string.IsNullOrWhiteSpace(path))
+            {
+                return;
+            }
+
+            try
+            {
+                lock (opcode9095LogLock)
+                {
+                    if (!opcode9095ProbeWritten)
+                    {
+                        string probeLine = $"{DateTime.Now:yyyy-MM-ddTHH:mm:ss.fff} probe=startup log_path=\"{path}\" base_directory=\"{AppContext.BaseDirectory}\"";
+                        File.AppendAllText(path, probeLine + Environment.NewLine, Encoding.UTF8);
+                        opcode9095ProbeWritten = true;
+                    }
+
+                    File.AppendAllText(path, message + Environment.NewLine, Encoding.UTF8);
+                }
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to write opcode 9095 log '{path}': {ex}");
             }
         }
 
@@ -877,6 +934,46 @@ namespace Mabinogi_Damage_tracker
                    $"beginningOfPacketCursor={beginningOfPacketCursor} hex_preview=\"{hexPreview}\"";
         }
 
+        private static string FormatOpcode9095Record(
+            uint opcode,
+            uint subPacketLength,
+            int beginningOfPacketCursor,
+            ReadOnlySpan<byte> fullPacketBytes,
+            ReadOnlySpan<byte> payloadBytes,
+            string patternHits,
+            uint? lastActionPackId,
+            uint? lastCombatActionId)
+        {
+            string first8AfterOpcodeHex = GetHexString(payloadBytes, 0, Math.Min(8, payloadBytes.Length));
+            string tailLast8Hex = GetHexString(fullPacketBytes, Math.Max(0, fullPacketBytes.Length - 8), Math.Min(8, fullPacketBytes.Length));
+            return $"{DateTime.Now:yyyy-MM-ddTHH:mm:ss.fff} reason=opcode_9095_observed opcode={opcode} opcode_hex=0x{opcode:X8} " +
+                   $"subPacketLength={subPacketLength} beginningOfPacketCursor={beginningOfPacketCursor} " +
+                   $"last_actionpack_id={(lastActionPackId.HasValue ? lastActionPackId.Value.ToString() : "null")} last_combatActionID={(lastCombatActionId.HasValue ? lastCombatActionId.Value.ToString() : "null")} " +
+                   $"first8_after_opcode_hex=\"{first8AfterOpcodeHex}\" tail_last8_hex=\"{tailLast8Hex}\" " +
+                   $"tail_u16_be_probe={ReadUInt16Probe(fullPacketBytes, false)} tail_u16_le_probe={ReadUInt16Probe(fullPacketBytes, true)} " +
+                   $"tail_u32_be_probe={ReadUInt32Probe(fullPacketBytes, false)} tail_u32_le_probe={ReadUInt32Probe(fullPacketBytes, true)} " +
+                   $"full_packet_hex=\"{GetHexString(fullPacketBytes)}\" payload_hex=\"{GetHexString(payloadBytes)}\" pattern_hits=\"{patternHits}\"";
+        }
+
+        private static string GetPatternHitsForPacket(ReadOnlySpan<byte> packetBytes)
+        {
+            List<string> hits = new List<string>();
+
+            foreach (var pattern in opcodeSkillHitPatterns)
+            {
+                foreach (int hitOffset in FindPatternOffsets(packetBytes, pattern.PatternBytes))
+                {
+                    string hitPreview = GetBoundedHexPreviewAroundOffset(packetBytes, hitOffset, pattern.PatternBytes.Length, 8, 16);
+                    string ushortProbe = pattern.PatternBytes.Length >= 2
+                        ? $" u16be={BinaryPrimitives.ReadUInt16BigEndian(packetBytes.Slice(hitOffset, 2))} u16le={BinaryPrimitives.ReadUInt16LittleEndian(packetBytes.Slice(hitOffset, 2))}"
+                        : string.Empty;
+                    hits.Add($"skill={pattern.SkillId},type={pattern.PatternType},offset={hitOffset},preview={hitPreview}{ushortProbe}");
+                }
+            }
+
+            return string.Join(";", hits);
+        }
+
         private static string GetBoundedHexPreviewAroundOffset(ReadOnlySpan<byte> buffer, int hitOffset, int matchLength, int bytesBefore, int bytesAfter)
         {
             try
@@ -900,6 +997,74 @@ namespace Mabinogi_Damage_tracker
             {
                 Debug.WriteLine($"Failed to build opcode skill hit preview: {ex}");
                 return string.Empty;
+            }
+        }
+
+        private static string GetHexString(ReadOnlySpan<byte> buffer)
+        {
+            return GetHexString(buffer, 0, buffer.Length);
+        }
+
+        private static string GetHexString(ReadOnlySpan<byte> buffer, int start, int length)
+        {
+            try
+            {
+                if (start < 0 || start >= buffer.Length || length <= 0)
+                {
+                    return string.Empty;
+                }
+
+                int boundedLength = Math.Min(length, buffer.Length - start);
+                return BitConverter.ToString(buffer.Slice(start, boundedLength).ToArray()).Replace("-", " ");
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to build hex string: {ex}");
+                return string.Empty;
+            }
+        }
+
+        private static string ReadUInt16Probe(ReadOnlySpan<byte> buffer, bool littleEndian)
+        {
+            try
+            {
+                if (buffer.Length < sizeof(UInt16))
+                {
+                    return "null";
+                }
+
+                ReadOnlySpan<byte> tail = buffer.Slice(buffer.Length - sizeof(UInt16), sizeof(UInt16));
+                ushort value = littleEndian
+                    ? BinaryPrimitives.ReadUInt16LittleEndian(tail)
+                    : BinaryPrimitives.ReadUInt16BigEndian(tail);
+                return value.ToString();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to read UInt16 probe: {ex}");
+                return "null";
+            }
+        }
+
+        private static string ReadUInt32Probe(ReadOnlySpan<byte> buffer, bool littleEndian)
+        {
+            try
+            {
+                if (buffer.Length < sizeof(UInt32))
+                {
+                    return "null";
+                }
+
+                ReadOnlySpan<byte> tail = buffer.Slice(buffer.Length - sizeof(UInt32), sizeof(UInt32));
+                uint value = littleEndian
+                    ? BinaryPrimitives.ReadUInt32LittleEndian(tail)
+                    : BinaryPrimitives.ReadUInt32BigEndian(tail);
+                return value.ToString();
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine($"Failed to read UInt32 probe: {ex}");
+                return "null";
             }
         }
 
