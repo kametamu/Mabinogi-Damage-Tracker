@@ -616,6 +616,28 @@ namespace Mabinogi_Damage_tracker
                     string currentEntityRole = GetCombatEntityRole(subsub_ttype);
                     UInt64 currentCandidateAttackerId = GetCandidateAttackerId(attacker_id, entityID, subsub_ttype);
                     UInt64 currentCandidateEnemyId = GetCandidateEnemyId(enemy_id, entityID, subsub_ttype);
+                    WriteCombatInvestigationLog(
+                        debugLogPath,
+                        FormatCombatDebugRecord(
+                            "subsub_packet_observed",
+                            currentCandidateAttackerId,
+                            currentCandidateEnemyId,
+                            entityID,
+                            skillid,
+                            subskillid,
+                            actionpack_id,
+                            prev_actionpack_id,
+                            combatActionID,
+                            damage: null,
+                            wound: null,
+                            manaDamage: null,
+                            options: null,
+                            subsub_ttype,
+                            cursor,
+                            subsub_pack_start_cursor,
+                            subsubPackLen,
+                            payloadData,
+                            currentEntityRole));
 
                     if ((subsub_ttype & 2) != 0)
                     {
@@ -748,7 +770,7 @@ namespace Mabinogi_Damage_tracker
 
         private static string GetCombatDebugLogPath()
         {
-            return Path.Combine(AppContext.BaseDirectory, "debug_combat_actionpack_skills.log");
+            return Path.Combine(AppContext.BaseDirectory, "debug_combat_actionpack_subsubs.log");
         }
 
         private static void WriteCombatInvestigationLog(string? path, string message)
