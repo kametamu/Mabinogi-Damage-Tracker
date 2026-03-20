@@ -221,7 +221,7 @@ namespace Mabinogi_Damage_tracker
                     LastSeenUtc = nowUtc
                 };
                 tcpStreams[streamKey] = streamState;
-                LogsController.WriteLog($"[TCP] New stream created {streamKey}");
+                //LogsController.WriteLog($"[TCP] New stream created {streamKey}");
             }
 
             return streamState;
@@ -263,7 +263,7 @@ namespace Mabinogi_Damage_tracker
             foreach (TcpStreamKey expiredKey in expiredKeys)
             {
                 tcpStreams.Remove(expiredKey);
-                LogsController.WriteLog($"[TCP] Idle stream expired {expiredKey}");
+                //LogsController.WriteLog($"[TCP] Idle stream expired {expiredKey}");
             }
         }
 
@@ -299,14 +299,14 @@ namespace Mabinogi_Damage_tracker
                 int overlap = (int)(nextSequence - sequenceNumber);
                 if (overlap >= payload.Length)
                 {
-                    LogsController.WriteLog($"[TCP] Duplicate segment ignored for {streamKey} at seq {sequenceNumber}");
+                    //LogsController.WriteLog($"[TCP] Duplicate segment ignored for {streamKey} at seq {sequenceNumber}");
                     return;
                 }
 
                 int remainingLength = payload.Length - overlap;
                 streamState.Buffer.AddRange(payload.AsSpan(overlap, remainingLength).ToArray());
                 streamState.NextSequence = nextSequence + (uint)remainingLength;
-                LogsController.WriteLog($"[TCP] Overlapping segment trimmed for {streamKey} at seq {sequenceNumber}");
+                //LogsController.WriteLog($"[TCP] Overlapping segment trimmed for {streamKey} at seq {sequenceNumber}");
                 EnsureStreamWithinLimits(streamKey, streamState);
                 DrainQueuedSegments(streamKey, streamState);
                 return;
@@ -314,12 +314,12 @@ namespace Mabinogi_Damage_tracker
 
             if (streamState.PendingSegments.ContainsKey(sequenceNumber))
             {
-                LogsController.WriteLog($"[TCP] Duplicate out-of-order segment ignored for {streamKey} at seq {sequenceNumber}");
+                //LogsController.WriteLog($"[TCP] Duplicate out-of-order segment ignored for {streamKey} at seq {sequenceNumber}");
                 return;
             }
 
             streamState.PendingSegments[sequenceNumber] = payload.ToArray();
-            LogsController.WriteLog($"[TCP] Out-of-order segment queued for {streamKey} at seq {sequenceNumber}, expecting {nextSequence}");
+            //LogsController.WriteLog($"[TCP] Out-of-order segment queued for {streamKey} at seq {sequenceNumber}, expecting {nextSequence}");
 
             if (streamState.PendingSegments.Count > MaxQueuedSegmentsPerStream)
             {
@@ -347,14 +347,14 @@ namespace Mabinogi_Damage_tracker
                     int overlap = (int)(nextSequence - nextPending.Key);
                     if (overlap >= nextPending.Value.Length)
                     {
-                        LogsController.WriteLog($"[TCP] Queued duplicate segment ignored for {streamKey} at seq {nextPending.Key}");
+                        //LogsController.WriteLog($"[TCP] Queued duplicate segment ignored for {streamKey} at seq {nextPending.Key}");
                         continue;
                     }
 
                     int remainingLength = nextPending.Value.Length - overlap;
                     streamState.Buffer.AddRange(nextPending.Value.AsSpan(overlap, remainingLength).ToArray());
                     streamState.NextSequence = nextSequence + (uint)remainingLength;
-                    LogsController.WriteLog($"[TCP] Queued overlapping segment trimmed for {streamKey} at seq {nextPending.Key}");
+                    //LogsController.WriteLog($"[TCP] Queued overlapping segment trimmed for {streamKey} at seq {nextPending.Key}");
                 }
                 else
                 {
@@ -754,7 +754,7 @@ namespace Mabinogi_Damage_tracker
 
         private static void ResetStream(TcpStreamKey streamKey, TcpStreamState streamState, string reason)
         {
-            LogsController.WriteLog($"[TCP] Resetting stream {streamKey}: {reason}");
+            //LogsController.WriteLog($"[TCP] Resetting stream {streamKey}: {reason}");
             streamState.Buffer.Clear();
             streamState.PendingSegments.Clear();
             streamState.NextSequence = null;
