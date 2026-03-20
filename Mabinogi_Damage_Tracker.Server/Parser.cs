@@ -5,28 +5,49 @@ using SharpPcap;
 using System.Buffers.Binary;
 using System.ComponentModel;
 using System.Diagnostics;
-using System.Text.RegularExpressions;
 using System.Text;
-using Microsoft.AspNetCore.Identity.UI.Services;
 using System;
-using System.Linq.Expressions;
-using System.Reflection.Metadata.Ecma335;
 using SQLitePCL;
-
-
+using System.Collections.Generic;
+using System.Linq;
+using System.Net;
+using System.Runtime.InteropServices;
 
 namespace Mabinogi_Damage_tracker
 {
     public static class Parser
     {
+        private const int MaxGameSubPacketLength = 2000;
+        private const int MaxStreamBufferBytes = 256 * 1024;
+        private const int MaxQueuedSegmentsPerStream = 64;
+        private static readonly TimeSpan StreamIdleTimeout = TimeSpan.FromMinutes(2);
+        private const ushort TcpFlagFin = 0x01;
+        private const ushort TcpFlagSyn = 0x02;
+        private const ushort TcpFlagRst = 0x04;
+
+        private static DateTime lastStreamCleanupUtc = DateTime.MinValue;
+
+        private readonly record struct TcpStreamKey(string SourceIp, int SourcePort, string DestinationIp, int DestinationPort)
+        {
+            public override string ToString() => $"{SourceIp}:{SourcePort}->{DestinationIp}:{DestinationPort}";
+        }
+
+        private sealed class TcpStreamState
+        {
+            public List<byte> Buffer { get; } = new List<byte>();
+            public SortedDictionary<uint, byte[]> PendingSegments { get; } = new SortedDictionary<uint, byte[]>();
+            public uint? NextSequence { get; set; }
+            public DateTime LastSeenUtc { get; set; }
+        }
+
         static CaptureFileWriterDevice captureFileWriter = new CaptureFileWriterDevice("out.pcapng");
         static bool savenextpacket = false;
         static BindingList<Name> character_names = new BindingList<Name>();
         static UInt64 last_healer = 0;
         public static string adapter_description;
         public static List<string> adapters = new List<string>();
-        
-        
+        static Dictionary<TcpStreamKey, TcpStreamState> tcpStreams = new Dictionary<TcpStreamKey, TcpStreamState>();
+
         public static bool pause = false;
         #if DEBUG_LIVE || RELEASE
             static LibPcapLiveDevice device = null;
@@ -36,27 +57,25 @@ namespace Mabinogi_Damage_tracker
         #endif
         static Thread reader;
 
-
-        //i am unconvinced this is the best way to handle the thread managing the event handler
         public static bool Stop()
         {
-            
             device.Close();
             device.StopCapture();
             device.OnPacketArrival -= Device_OnPacketArrival;
-            
+
             Stopwatch watchdog = Stopwatch.StartNew();
             while (watchdog.ElapsedMilliseconds < 5000 && (device.Opened == true || reader.ThreadState == System.Threading.ThreadState.Running))
             {
                 Thread.Sleep(50);
             }
-            if(reader.ThreadState == System.Threading.ThreadState.Running || device.Opened == true)
+            if (reader.ThreadState == System.Threading.ThreadState.Running || device.Opened == true)
             {
                 LogsController.WriteLog("Could not stop thread. Try restarting server");
                 return false;
             }
             return true;
         }
+
         public static void Start()
         {
             reader = new Thread(Reader);
@@ -71,11 +90,9 @@ namespace Mabinogi_Damage_tracker
 
             string filter = "ip and tcp and tcp portrange 11020-11023";
 #if DEBUG_LIVE || RELEASE
-            //populate a list of adapters for the front end
             adapters = LibPcapLiveDeviceList.Instance.Select(a => a.Description).ToList();
-            //check if we have a saved adapter
             adapter_description = db_helper.Get_Local_Adapter();
-            if(adapter_description != null && adapter_description !="")
+            if (adapter_description != null && adapter_description != "")
             {
                 try
                 {
@@ -99,7 +116,6 @@ namespace Mabinogi_Damage_tracker
 
                     GetPacketStatus status;
                     PacketCapture pack;
-                    //lets walk through each adapter and see if we can get a packet
                     while (watchdog.ElapsedMilliseconds < 2000 && device == null)
                     {
                         status = dev.GetNextPacket(out pack);
@@ -123,10 +139,10 @@ namespace Mabinogi_Damage_tracker
                 LogsController.WriteLog("Restart Parser and try moving while scanning. Check your setup and wireshark to confirm data received.");
                 return;
             }
-            #endif
+#endif
 
             try
-             {
+            {
                 device.Open(DeviceModes.Promiscuous);
                 device.Filter = filter;
                 device.OnPacketArrival += Device_OnPacketArrival;
@@ -138,7 +154,7 @@ namespace Mabinogi_Damage_tracker
                 device.StartCapture();
 #endif
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
                 LogsController.WriteLog("Failed to start parser. execption: " + ex.Message);
             }
@@ -146,14 +162,11 @@ namespace Mabinogi_Damage_tracker
 
         private static void Device_OnPacketArrival(object s, PacketCapture e)
         {
-            if(pause == true)
+            if (pause == true)
             {
                 return;
             }
 
-            //type of message
-            DateTime time = e.Header.Timeval.Date;
-            int len = e.Data.Length;
             RawCapture raw = e.GetPacket();
 
             if (savenextpacket)
@@ -162,204 +175,307 @@ namespace Mabinogi_Damage_tracker
                 captureFileWriter.Write(raw);
             }
 
-            Packet packet = PacketDotNet.Packet.ParsePacket(raw.LinkLayerType, raw.Data);
+            Packet packet = Packet.ParsePacket(raw.LinkLayerType, raw.Data);
+            TcpPacket tcp = packet.Extract<TcpPacket>();
+            IPPacket ip = packet.Extract<IPPacket>();
 
-            TcpPacket tcp = packet.Extract<PacketDotNet.TcpPacket>();
-
-            if(tcp == null) { return; }
-
-            #region packet info
-            //each packet has sub packets
-            //the first byte of the packet is 'sign' ? dont know what it does
-            //the next 4 bytes (byte[1-4]) are a little eden unit32 'length' of the sub packet
-            //byte 5 is 'flag' sometimes used as a heart beat or keep alive should always be less than 4
-            //packet must have more than 6 bytes + 13 bytes 6 for header 13 for data
-            //
-            //that completes the header
-            //the body starts with an 'opcode' big eden uint32          data packets use opcode 0x7926
-            //then an big eden uint64 'id'
-            //the next type is a variable int with a max of 64bits. a custom function needs to be written like golang's binary.Uvarint where each byte is checked if its greater than 0x80 and bit shifted until one less than 0x80 is found
-            //the above vaiable int is not used for anything
-            //
-            //then the data of the packet
-            //
-            //the first byte[0] is how many items are in the data packet this is also a uvarint but we do not care because damage packets are less than 1 byte big (128)
-            //the next byte[1] should always be 0
-            //the next byte[2] is the data type of the following number using this enumarator
-            //          1,2,3,4,5,6,7 
-            //          byte, short, int32, long, float, string, bin
-            //the reaminder of the packet is data
-            //damage packets have a subsub packet that contains the damage. the header of the subpacket (that we are in so far) contains the following
-            //uint32 actionpack-id
-            //uint32 prev-actionpack-id
-            //byte hit
-            //byte ttype
-            //byte unk1
-            //byte flag
-            //      we must check flag for 0 if flag is a non zero then the attack was blocked and there is more data, atm these packets are just skipped for future refence it is an int, int, long we could possibly skip this section
-            //int subsubpacket-count
-            //
-            //a sub sub packet is made up of an int and a bin
-            //      we skip the int in the subpacket dont know what it does
-            //inside the bin of the subsub packet we have the info we want
-            //      uint32 combatActionID
-            //      uint64 entityID
-            //      byte ttype
-            //      uint16 stun
-            //      uint16 skillid
-            //      uint16 subskillid
-            //      unit16 unk1
-            // we then have to check bits 1 and 2 with a bitewise and on ttype to make sure they are 1 this is done is 2 seperate sup sup packets
-            //bitwise and 2 != 0 packet gives the following:
-            //              uint64 targetID
-            //              uint32 options
-            //              byte usedWeaponset
-            //              byte weaponParameterType
-            //              uint32 unk1
-            //              uint32 posX
-            //              uint32 posY
-            //a bitewise and 1 != 0 packet gives the following:
-            //              uint32 options
-            //              float damage (wow ding ding ding)
-            //              float wound
-            //              uint32 manadamage
-            //thats the packet structure.
-
-            //main tcp packet
-            //      sub game packet
-            //          --header start--
-            //          byte[1-4]   length        
-            //          byte[5]     flag
-            //          byte[6-9]   opcode        
-            //          byte[10-18] id
-            //          byte[19-?]  ?  unisgned, vairable int
-            //          --header end--
-            //          --sub sub packet beging--
-            //          byte[0]     how many items are in the packet also a unsigned variable int but we dont need to check other than making sure its less than 0x80
-            //          byte[1] should be 0
-            //              --data chunk--
-            //              byte[0] data type 1,2,3,4,5,6,7
-            //              byte[1-?] data
-            //              --end data chuck--
-            //          the rest of the packet is data
-
-            //Debug.WriteLine("packet read len {0}", raw.Data.Length);
-            #endregion
-
-            int cursor = 0;
-
-            bool previous_healing_packet = false;
-            List<healing> healing_packs = new List<healing>();
-            
-
-            while (cursor + 10 < tcp.PayloadData.Length)
-            { 
-                //parse sub packet header
-                int begining_of_packet_cursor = cursor;
-                byte sign = tcp.PayloadData[cursor];
-                cursor += sizeof(byte);
-
-                //we use AsSpan to not chop up the raw packet. this handles creating and disposing a section or snip of the data packet
-                UInt32 sub_packet_length = BinaryPrimitives.ReadUInt32LittleEndian(tcp.PayloadData.AsSpan(cursor));
-                if (sub_packet_length > 2000 || sub_packet_length == 0)
-                {
-                    //bad data skip packet
-                    continue;
-                }
-                cursor += sizeof(UInt32);
-
-                byte header_flag = tcp.PayloadData[cursor];
-                cursor += sizeof(byte);
-
-                if (sub_packet_length < 5) { cursor = (int)sub_packet_length + begining_of_packet_cursor; continue; }
-                if (header_flag > 4 || header_flag == 1 || header_flag == 2) { cursor = (int)sub_packet_length + begining_of_packet_cursor; continue; }
-
-                //header done next is opcode
-                UInt32 opcode = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
-                cursor += sizeof(UInt32);
-
-                switch(opcode)
-                {
-                    case Op_Codes.healing:         //healing
-                        pack_healing(tcp, cursor, ref healing_packs, (int)sub_packet_length, begining_of_packet_cursor);
-                        break;
-                    case Op_Codes.ChatMessage:
-                        read_chat(tcp, cursor);
-                        break;
-                    case Op_Codes.CombatActionPack:
-                        pack_damage(tcp, cursor, (int)sub_packet_length, begining_of_packet_cursor);
-                        break;
-                }
-                cursor = (int)sub_packet_length + begining_of_packet_cursor; 
-                continue; 
-            }
-
-            if(healing_packs.Count > 0)
+            if (tcp == null || ip == null)
             {
-                healing_packs.ForEach(a => a.caster = last_healer);
-                foreach (var item in healing_packs)
-                {
-                    if(item.heal > 10000) { return; }
-                    db_helper.add_heal(item.caster, item.recepient, item.heal);
-                    LogsController.WriteLog("[HEAL]" + item.caster + "->" + item.recepient + " for " + item.heal);
-                    Debug.WriteLine("player {0}, was healed by {1}, for {2}",item.recepient,item.caster,item.heal);
-                }
+                return;
             }
 
-            return;
+            DateTime nowUtc = DateTime.UtcNow;
+            CleanupIdleStreams(nowUtc);
+
+            TcpStreamKey streamKey = new TcpStreamKey(
+                ip.SourceAddress.ToString(),
+                tcp.SourcePort,
+                ip.DestinationAddress.ToString(),
+                tcp.DestinationPort);
+
+            bool hasPayload = tcp.PayloadData != null && tcp.PayloadData.Length > 0;
+            if (hasPayload)
+            {
+                ProcessTcpSegment(streamKey, tcp.PayloadData, (uint)tcp.SequenceNumber, nowUtc);
+            }
+
+            HandleConnectionLifecycleEvent(streamKey, tcp);
         }
 
-        private static void pack_healing(TcpPacket tcp, int cursor, ref List<healing> healing_packs, int sub_packet_length, int begining_of_packet_cursor)
+        private static void ProcessTcpSegment(TcpStreamKey streamKey, byte[] payload, uint sequenceNumber, DateTime nowUtc)
         {
-            #region healing packet notes
-            //healing packets have 2 back to back opcodes the firstpacket has plain text 'healing'
-            //the first packet starts with the caster uid uint64
-            //then a flag,
-            //0x0A = has the recepient id and the healing value -- it apears that the 2 bytes before the value indicate if it was, hp, mana, stamina, wound
-            //0x19 = healing cast which is a packet that says who casted healing on who
-            //0x28 = party healing cast
-            //0x13 = hands of restoration cast -- note hands of restoration seems to return a 0 when the receptient is at full hp or at all times? all HS skils behaive this way
-            //??? = voices of vitality
-            //??? = echos of salvation
+            TcpStreamState streamState = GetOrCreateStream(streamKey, nowUtc);
+            streamState.LastSeenUtc = nowUtc;
 
-            //then at location 16 a string indicator with a length of 8 that says 'healing'
-            //then a uint64 for the recepiant id
-            
-            //then right after there should be another healing packet
-            //the first section of the packet is a uint64 for the recepient id
-            //skip a byte
-            //uint16
-            //skip 2 bytes
-            //byte
-            //uint32 healing received
-            #endregion
+            AppendTcpPayload(streamKey, streamState, sequenceNumber, payload);
+            ParseReassembledStream(streamKey, streamState);
+        }
+
+
+        private static TcpStreamState GetOrCreateStream(TcpStreamKey streamKey, DateTime nowUtc)
+        {
+            if (!tcpStreams.TryGetValue(streamKey, out TcpStreamState? streamState))
+            {
+                streamState = new TcpStreamState
+                {
+                    LastSeenUtc = nowUtc
+                };
+                tcpStreams[streamKey] = streamState;
+                //LogsController.WriteLog($"[TCP] New stream created {streamKey}");
+            }
+
+            return streamState;
+        }
+
+        private static void HandleConnectionLifecycleEvent(TcpStreamKey streamKey, TcpPacket tcp)
+        {
+            ushort tcpFlags = tcp.Flags;
+            ushort teardownFlags = (ushort)(TcpFlagFin | TcpFlagSyn | TcpFlagRst);
+            if ((tcpFlags & teardownFlags) == 0)
+            {
+                return;
+            }
+
+            if (tcpStreams.Remove(streamKey))
+            {
+                string flag = (tcpFlags & TcpFlagRst) != 0
+                    ? "RST"
+                    : (tcpFlags & TcpFlagSyn) != 0
+                        ? "SYN"
+                        : "FIN";
+                LogsController.WriteLog($"[TCP] Stream removed on {flag} for {streamKey}");
+            }
+        }
+
+        private static void CleanupIdleStreams(DateTime nowUtc)
+        {
+            if (nowUtc - lastStreamCleanupUtc < TimeSpan.FromSeconds(30))
+            {
+                return;
+            }
+
+            lastStreamCleanupUtc = nowUtc;
+            List<TcpStreamKey> expiredKeys = tcpStreams
+                .Where(stream => nowUtc - stream.Value.LastSeenUtc > StreamIdleTimeout)
+                .Select(stream => stream.Key)
+                .ToList();
+
+            foreach (TcpStreamKey expiredKey in expiredKeys)
+            {
+                tcpStreams.Remove(expiredKey);
+                //LogsController.WriteLog($"[TCP] Idle stream expired {expiredKey}");
+            }
+        }
+
+        private static void AppendTcpPayload(TcpStreamKey streamKey, TcpStreamState streamState, uint sequenceNumber, byte[] payload)
+        {
+            if (payload.Length == 0)
+            {
+                return;
+            }
+
+            if (streamState.NextSequence == null)
+            {
+                streamState.Buffer.AddRange(payload);
+                streamState.NextSequence = sequenceNumber + (uint)payload.Length;
+                EnsureStreamWithinLimits(streamKey, streamState);
+                DrainQueuedSegments(streamKey, streamState);
+                return;
+            }
+
+            uint nextSequence = streamState.NextSequence.Value;
+            int sequenceComparison = CompareSequence(sequenceNumber, nextSequence);
+            if (sequenceComparison == 0)
+            {
+                streamState.Buffer.AddRange(payload);
+                streamState.NextSequence = nextSequence + (uint)payload.Length;
+                EnsureStreamWithinLimits(streamKey, streamState);
+                DrainQueuedSegments(streamKey, streamState);
+                return;
+            }
+
+            if (sequenceComparison < 0)
+            {
+                int overlap = (int)(nextSequence - sequenceNumber);
+                if (overlap >= payload.Length)
+                {
+                    //LogsController.WriteLog($"[TCP] Duplicate segment ignored for {streamKey} at seq {sequenceNumber}");
+                    return;
+                }
+
+                int remainingLength = payload.Length - overlap;
+                streamState.Buffer.AddRange(payload.AsSpan(overlap, remainingLength).ToArray());
+                streamState.NextSequence = nextSequence + (uint)remainingLength;
+                //LogsController.WriteLog($"[TCP] Overlapping segment trimmed for {streamKey} at seq {sequenceNumber}");
+                EnsureStreamWithinLimits(streamKey, streamState);
+                DrainQueuedSegments(streamKey, streamState);
+                return;
+            }
+
+            if (streamState.PendingSegments.ContainsKey(sequenceNumber))
+            {
+                //LogsController.WriteLog($"[TCP] Duplicate out-of-order segment ignored for {streamKey} at seq {sequenceNumber}");
+                return;
+            }
+
+            streamState.PendingSegments[sequenceNumber] = payload.ToArray();
+            //LogsController.WriteLog($"[TCP] Out-of-order segment queued for {streamKey} at seq {sequenceNumber}, expecting {nextSequence}");
+
+            if (streamState.PendingSegments.Count > MaxQueuedSegmentsPerStream)
+            {
+                ResetStream(streamKey, streamState, "too many queued out-of-order segments");
+            }
+        }
+
+        private static void DrainQueuedSegments(TcpStreamKey streamKey, TcpStreamState streamState)
+        {
+            while (streamState.NextSequence != null && streamState.PendingSegments.Count > 0)
+            {
+                uint nextSequence = streamState.NextSequence.Value;
+                KeyValuePair<uint, byte[]> nextPending = streamState.PendingSegments.First();
+                int sequenceComparison = CompareSequence(nextPending.Key, nextSequence);
+
+                if (sequenceComparison > 0)
+                {
+                    return;
+                }
+
+                streamState.PendingSegments.Remove(nextPending.Key);
+
+                if (sequenceComparison < 0)
+                {
+                    int overlap = (int)(nextSequence - nextPending.Key);
+                    if (overlap >= nextPending.Value.Length)
+                    {
+                        //LogsController.WriteLog($"[TCP] Queued duplicate segment ignored for {streamKey} at seq {nextPending.Key}");
+                        continue;
+                    }
+
+                    int remainingLength = nextPending.Value.Length - overlap;
+                    streamState.Buffer.AddRange(nextPending.Value.AsSpan(overlap, remainingLength).ToArray());
+                    streamState.NextSequence = nextSequence + (uint)remainingLength;
+                    //LogsController.WriteLog($"[TCP] Queued overlapping segment trimmed for {streamKey} at seq {nextPending.Key}");
+                }
+                else
+                {
+                    streamState.Buffer.AddRange(nextPending.Value);
+                    streamState.NextSequence = nextSequence + (uint)nextPending.Value.Length;
+                }
+
+                EnsureStreamWithinLimits(streamKey, streamState);
+            }
+        }
+
+        private static void ParseReassembledStream(TcpStreamKey streamKey, TcpStreamState streamState)
+        {
+            int consumedBytes = 0;
+            List<healing> healingPacks = new List<healing>();
+            Span<byte> buffer = CollectionsMarshal.AsSpan(streamState.Buffer);
+
+            while (buffer.Length - consumedBytes >= 10)
+            {
+                int beginningOfPacketCursor = consumedBytes;
+                byte sign = buffer[consumedBytes];
+                _ = sign;
+                consumedBytes += sizeof(byte);
+
+                uint subPacketLength = BinaryPrimitives.ReadUInt32LittleEndian(buffer.Slice(consumedBytes));
+                consumedBytes += sizeof(UInt32);
+
+                if (subPacketLength == 0 || subPacketLength > MaxGameSubPacketLength)
+                {
+                    ResetStream(streamKey, streamState, $"invalid sub-packet length {subPacketLength}");
+                    return;
+                }
+
+                if (streamState.Buffer.Count - beginningOfPacketCursor < subPacketLength)
+                {
+                    consumedBytes = beginningOfPacketCursor;
+                    break;
+                }
+
+                byte headerFlag = buffer[consumedBytes];
+                consumedBytes += sizeof(byte);
+
+                if (subPacketLength < 10)
+                {
+                    consumedBytes = beginningOfPacketCursor + (int)subPacketLength;
+                    continue;
+                }
+
+                if (headerFlag > 4 || headerFlag == 1 || headerFlag == 2)
+                {
+                    consumedBytes = beginningOfPacketCursor + (int)subPacketLength;
+                    continue;
+                }
+
+                uint opcode = BinaryPrimitives.ReadUInt32BigEndian(buffer.Slice(consumedBytes));
+                consumedBytes += sizeof(UInt32);
+
+                ReadOnlySpan<byte> packetBytes = buffer;
+                switch (opcode)
+                {
+                    case Op_Codes.healing:
+                        pack_healing(packetBytes, consumedBytes, ref healingPacks, (int)subPacketLength, beginningOfPacketCursor);
+                        break;
+                    case Op_Codes.ChatMessage:
+                        read_chat(packetBytes, consumedBytes, beginningOfPacketCursor);
+                        break;
+                    case Op_Codes.CombatActionPack:
+                        pack_damage(packetBytes, consumedBytes, (int)subPacketLength, beginningOfPacketCursor);
+                        break;
+                }
+
+                consumedBytes = beginningOfPacketCursor + (int)subPacketLength;
+            }
+
+            if (consumedBytes > 0)
+            {
+                streamState.Buffer.RemoveRange(0, consumedBytes);
+            }
+
+            if (healingPacks.Count > 0)
+            {
+                healingPacks.ForEach(a => a.caster = last_healer);
+                foreach (var item in healingPacks)
+                {
+                    if (item.heal > 10000) { return; }
+                    db_helper.add_heal(item.caster, item.recepient, item.heal);
+                    LogsController.WriteLog("[HEAL]" + item.caster + "->" + item.recepient + " for " + item.heal);
+                    Debug.WriteLine("player {0}, was healed by {1}, for {2}", item.recepient, item.caster, item.heal);
+                }
+            }
+
+            EnsureStreamWithinLimits(streamKey, streamState);
+        }
+
+        private static void pack_healing(ReadOnlySpan<byte> payloadData, int cursor, ref List<healing> healing_packs, int sub_packet_length, int begining_of_packet_cursor)
+        {
             try
             {
-                byte heal_type = tcp.PayloadData[cursor + sizeof(UInt64)];
+                byte heal_type = payloadData[cursor + sizeof(UInt64)];
                 healing healpack = new healing();
 
                 switch (heal_type)
                 {
-                    case 0x0A:  //healing received
-                        healpack.recepient = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor));
-                        healpack.heal = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor + 17));
+                    case 0x0A:
+                        healpack.recepient = BinaryPrimitives.ReadUInt64BigEndian(payloadData.Slice(cursor));
+                        healpack.heal = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor + 17));
                         healing_packs.Add(healpack);
                         break;
-                    case 0x19: //healing cast
-                        last_healer = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor));
+                    case 0x19:
+                        last_healer = BinaryPrimitives.ReadUInt64BigEndian(payloadData.Slice(cursor));
                         break;
-                    case 0x28: //party healing
-                        last_healer = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor));
-                        //get the string length
+                    case 0x28:
+                        last_healer = BinaryPrimitives.ReadUInt64BigEndian(payloadData.Slice(cursor));
                         cursor += 19;
-                        int stringlength = tcp.PayloadData[cursor];
+                        int stringlength = payloadData[cursor];
                         cursor += stringlength;
-                        //multiple player ids possible check that we arnt over the sub packet and that they are uint64s
                         while (cursor < sub_packet_length + begining_of_packet_cursor)
                         {
-                            if (tcp.PayloadData[cursor] != 4) { break; }
+                            if (payloadData[cursor] != 4) { break; }
                             healing multiheal = new healing();
-                            multiheal.recepient = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor + 1));
+                            multiheal.recepient = BinaryPrimitives.ReadUInt64BigEndian(payloadData.Slice(cursor + 1));
                             multiheal.caster = last_healer;
                             healing_packs.Add(multiheal);
                             cursor += sizeof(UInt64);
@@ -372,9 +488,9 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
-        private static void pack_damage(TcpPacket tcp, int cursor, int sub_packet_length, int begining_of_packet_cursor)
+        private static void pack_damage(ReadOnlySpan<byte> payloadData, int cursor, int sub_packet_length, int begining_of_packet_cursor)
         {
-            UInt32 _subsub_pack_len = 0;
+            uint subsubPackLen = 0;
 
             try
             {
@@ -383,57 +499,55 @@ namespace Mabinogi_Damage_tracker
                 Thread.Sleep(rand.Next(55));
 #endif
 
-                UInt64 sub_packet_id = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor));
+                UInt64 sub_packet_id = BinaryPrimitives.ReadUInt64BigEndian(payloadData.Slice(cursor));
                 cursor += sizeof(UInt64);
+                _ = sub_packet_id;
 
-                //we found a good opcode ok lets continue to parse the damage packet
-                //read the uvint64 
                 UInt64 throwaway_uvint64;
                 int variable_int_bytesread;
-                read_variable_length_uint64(tcp.PayloadData.AsSpan(cursor), out throwaway_uvint64, out variable_int_bytesread);
+                read_variable_length_uint64(payloadData.Slice(cursor), out throwaway_uvint64, out variable_int_bytesread);
+                if (variable_int_bytesread < 0)
+                {
+                    return;
+                }
                 cursor += variable_int_bytesread;
 
-                //lets start parsing the sub sub packet
-                byte sub_item_count = tcp.PayloadData[cursor]; //when do we start eating the first byte?
+                byte sub_item_count = payloadData[cursor];
                 cursor += sizeof(byte);
+                _ = sub_item_count;
 
-                //check to make sure the next byte is 0 as it always should be
-                if (tcp.PayloadData[cursor] != 0) { cursor = (int)sub_packet_length + begining_of_packet_cursor; return; }
+                if (payloadData[cursor] != 0) { cursor = sub_packet_length + begining_of_packet_cursor; return; }
                 cursor++;
 
-                //now we read the header of the sub packet that contains data, all data chucnks have an extra byte at the begining to tell what type of data it is
-                //at the moment we just assume the packet is formed correctly.
-
                 cursor++;
-                UInt32 actionpack_id = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
+                UInt32 actionpack_id = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
                 cursor += sizeof(UInt32);
-
+                _ = actionpack_id;
 
                 cursor++;
-                UInt32 prev_actionpack_id = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
+                UInt32 prev_actionpack_id = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
                 cursor += sizeof(UInt32);
-
-
-                cursor++;
-                byte hit = tcp.PayloadData[cursor];
-                cursor += sizeof(byte);
-
+                _ = prev_actionpack_id;
 
                 cursor++;
-                byte ttype = tcp.PayloadData[cursor];
+                byte hit = payloadData[cursor];
                 cursor += sizeof(byte);
-
+                _ = hit;
 
                 cursor++;
-                byte unk1 = tcp.PayloadData[cursor];
+                byte ttype = payloadData[cursor];
                 cursor += sizeof(byte);
-
+                _ = ttype;
 
                 cursor++;
-                byte sub_header_flag = tcp.PayloadData[cursor];
+                byte unk1 = payloadData[cursor];
+                cursor += sizeof(byte);
+                _ = unk1;
+
+                cursor++;
+                byte sub_header_flag = payloadData[cursor];
                 cursor += sizeof(byte);
 
-                //check if the attack was blocked. if it is blocked there is more data at the moment we just skip these packets
                 if ((sub_header_flag & 0x1) != 0)
                 {
                     cursor++;
@@ -445,7 +559,7 @@ namespace Mabinogi_Damage_tracker
                 }
 
                 cursor++;
-                UInt32 subsub_packet_count = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
+                UInt32 subsub_packet_count = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
                 cursor += sizeof(UInt32);
 
                 UInt64 attacker_id = 0;
@@ -454,47 +568,44 @@ namespace Mabinogi_Damage_tracker
                 SkillId subskill = 0;
                 string throwawaypacket = "";
 
-                //now we have to parse each sub packet
                 for (int i = 0; i < subsub_packet_count; i++)
                 {
                     int subsub_pack_start_cursor = cursor + 8;
-                    //get the subsub packet length
                     cursor++;
-                    UInt32 subsub_pack_len = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor)); ;
-                    _subsub_pack_len = subsub_pack_len;
+                    subsubPackLen = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
 
-                    //we have to skip the header of the subsub packet
                     cursor += 22;
-
                     cursor++;
 
-                    UInt32 combatActionID = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
+                    UInt32 combatActionID = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
                     cursor += sizeof(UInt32);
+                    _ = combatActionID;
 
                     cursor++;
-                    UInt64 entityID = BinaryPrimitives.ReadUInt64BigEndian(tcp.PayloadData.AsSpan(cursor)); //possibly player id
+                    UInt64 entityID = BinaryPrimitives.ReadUInt64BigEndian(payloadData.Slice(cursor));
                     cursor += sizeof(UInt64);
 
                     cursor++;
-                    byte subsub_ttype = tcp.PayloadData[cursor];
+                    byte subsub_ttype = payloadData[cursor];
                     cursor += sizeof(byte);
 
                     cursor++;
-                    UInt16 stun = BinaryPrimitives.ReadUInt16BigEndian(tcp.PayloadData.AsSpan(cursor));
+                    UInt16 stun = BinaryPrimitives.ReadUInt16BigEndian(payloadData.Slice(cursor));
+                    cursor += sizeof(UInt16);
+                    _ = stun;
+
+                    cursor++;
+                    UInt16 skillid = BinaryPrimitives.ReadUInt16BigEndian(payloadData.Slice(cursor));
                     cursor += sizeof(UInt16);
 
                     cursor++;
-                    UInt16 skillid = BinaryPrimitives.ReadUInt16BigEndian(tcp.PayloadData.AsSpan(cursor));
+                    UInt16 subskillid = BinaryPrimitives.ReadUInt16BigEndian(payloadData.Slice(cursor));
                     cursor += sizeof(UInt16);
 
                     cursor++;
-                    UInt16 subskillid = BinaryPrimitives.ReadUInt16BigEndian(tcp.PayloadData.AsSpan(cursor));
+                    UInt16 subsub_unk1 = BinaryPrimitives.ReadUInt16BigEndian(payloadData.Slice(cursor));
                     cursor += sizeof(UInt16);
-
-                    cursor++;
-                    UInt16 subsub_unk1 = BinaryPrimitives.ReadUInt16BigEndian(tcp.PayloadData.AsSpan(cursor));
-                    cursor += sizeof(UInt16);
-
+                    _ = subsub_unk1;
 
                     if ((subsub_ttype & 2) != 0)
                     {
@@ -502,127 +613,64 @@ namespace Mabinogi_Damage_tracker
                         skill = (SkillId)skillid;
                         subskill = (SkillId)subskillid;
 
-                        throwawaypacket = ("throw away packet: " + BitConverter.ToString(tcp.PayloadData, subsub_pack_start_cursor + 43, (int)subsub_pack_len));
-                        #region extrapacketinfo
-                        //cursor++;
-                        //cursor += sizeof(UInt64);
-
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-
-                        //cursor++;
-                        //cursor += sizeof(byte);
-
-                        //cursor++;
-                        //cursor += sizeof(byte);
-
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        #endregion
+                        throwawaypacket = ("throw away packet: " + BitConverter.ToString(payloadData.Slice(subsub_pack_start_cursor + 43, (int)subsubPackLen).ToArray()));
+                        _ = throwawaypacket;
                     }
 
                     if ((subsub_ttype & 1) != 0)
                     {
                         enemy_id = entityID;
                         cursor++;
-                        UInt32 options = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
+                        UInt32 options = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
                         cursor += sizeof(UInt32);
 
                         cursor++;
-                        float damage = BinaryPrimitives.ReadSingleLittleEndian(tcp.PayloadData.AsSpan(cursor));
+                        float damage = BinaryPrimitives.ReadSingleLittleEndian(payloadData.Slice(cursor));
                         cursor += sizeof(float);
 
                         cursor++;
-                        float wound = BinaryPrimitives.ReadSingleLittleEndian(tcp.PayloadData.AsSpan(cursor));
+                        float wound = BinaryPrimitives.ReadSingleLittleEndian(payloadData.Slice(cursor));
                         cursor += sizeof(float);
 
                         cursor++;
-                        UInt32 manaDamage = BinaryPrimitives.ReadUInt32BigEndian(tcp.PayloadData.AsSpan(cursor));
+                        UInt32 manaDamage = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
                         cursor += sizeof(UInt32);
-                        #region extra packet info
-                        ////unk1
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        ////unk2
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        ////xdist
-                        //cursor++;
-                        //cursor += sizeof(float);
-                        ////ydist
-                        //cursor++;
-                        //cursor += sizeof(float);
-                        #endregion
 
-                        //where were at
                         if ((options & 33554432) != 0)
                         {
                             Debug.WriteLine("multiline found saving packet");
-                            //captureFileWriter.Write(raw);
-                            //multi hit unkown datatypes atm
-                            // hit count, unk2, unk3, unk4
                         }
-                        #region extra packet info
-                        //// effect flags, delay, attacker id, unk3, attacker id
-                        //cursor++;
-                        //cursor += sizeof(float);
-                        //cursor++;
-                        //cursor += sizeof(float);
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        //cursor++;
-                        //cursor += sizeof(byte);
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
 
-                        ////??
-                        //cursor++;
-                        //cursor += sizeof(UInt64);
-                        //cursor++;
-                        //cursor += sizeof(UInt32);
-                        //cursor++;
-                        //cursor += sizeof(UInt64);
-                        #endregion
-
-                        //check to make sure were only looking at player outgoing damage
                         if (attacker_id < 0x0010000000000001 || attacker_id > 0x0010010000000001)
                         { break; }
 
-                        if(damage < 0 || damage > 100000000 || skillid == 601 || skillid == 512 || skillid == 590) { break; }
+                        if (damage < 0 || damage > 100000000 || skillid == 601 || skillid == 512 || skillid == 590) { break; }
 
                         LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker_id, enemy_id, damage));
                         Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, with {6} : {7}", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill);
                         db_helper.add_damage((Int64)attacker_id, damage, wound, (int)manaDamage, (Int64)enemy_id, (int)skill, (int)subskill);
                     }
-                    cursor = subsub_pack_start_cursor + (int)subsub_pack_len;
+                    cursor = subsub_pack_start_cursor + (int)subsubPackLen;
                 }
             }
-            catch (ArgumentOutOfRangeException ex)
+            catch (ArgumentOutOfRangeException)
             {
-                Debug.WriteLine("Cursor out of range, saving this packet and the next. cursor at {0}, packet length {1}, sub packet length {2}, sub sub packet length {3}", cursor, tcp.PayloadData.Length, sub_packet_length, _subsub_pack_len);
-                cursor = (int)sub_packet_length + begining_of_packet_cursor;
+                Debug.WriteLine("Cursor out of range, saving this packet and the next. cursor at {0}, packet length {1}, sub packet length {2}, sub sub packet length {3}", cursor, payloadData.Length, sub_packet_length, subsubPackLen);
+                cursor = sub_packet_length + begining_of_packet_cursor;
                 savenextpacket = true;
-                //captureFileWriter.Write(raw);
             }
             catch (Exception ex)
             {
-                cursor = (int)sub_packet_length + begining_of_packet_cursor;
+                cursor = sub_packet_length + begining_of_packet_cursor;
                 Debug.WriteLine("caught an execption after finding a damage packet: ex {0}", ex.ToString());
             }
         }
 
-        private static void read_chat(TcpPacket packet, int cursor)
+        private static void read_chat(ReadOnlySpan<byte> payloadData, int cursor, int begining_of_packet_cursor)
         {
             try
             {
-                //the next uint64 is the palyer id
-                UInt64 playerid = BinaryPrimitives.ReadUInt64BigEndian(packet.PayloadData.AsSpan(cursor));
+                UInt64 playerid = BinaryPrimitives.ReadUInt64BigEndian(payloadData.Slice(cursor));
 
                 if (playerid < 0x0010000000000001 || playerid > 0x0010010000000001)
                 {
@@ -634,22 +682,20 @@ namespace Mabinogi_Damage_tracker
                     return;
                 }
 
-                cursor = 25;
-                byte namelength = packet.PayloadData[25];
+                cursor = begining_of_packet_cursor + 25;
+                byte namelength = payloadData[cursor];
 
                 if (namelength > 36 || namelength <= 1) { return; }
                 cursor++;
-                //the next [namelength] bytes is the name
 
-                string playername = Encoding.UTF8.GetString(packet.PayloadData, cursor, (int)namelength - 1);
+                string playername = Encoding.UTF8.GetString(payloadData.Slice(cursor, (int)namelength - 1));
 
                 if (string.IsNullOrWhiteSpace(playername)) { return; }
                 playername = playername.Trim();
                 if (playername.Any(char.IsControl)) { return; }
 
                 if (playername.Length >= 3 && playername.StartsWith("<") && playername.EndsWith(">")) { return; }
-                
-                //character_names.Add(new Name(playername, playerid));
+
                 db_helper.add_player(playername, (Int64)playerid);
                 LogsController.WriteLog("[PLAYER DISCOVERED]" + playerid.ToString() + " -> " + playername);
                 Debug.WriteLine("chat message read, playerid: {0}, username {1}", playerid.ToString(), playername);
@@ -657,11 +703,10 @@ namespace Mabinogi_Damage_tracker
             catch
             {
                 Debug.WriteLine("couldnt parse a name packet saving packet");
-                captureFileWriter.Write(packet.PayloadData);
             }
         }
 
-        private static void read_variable_length_uint64(Span<byte> bytes, out UInt64 parsedint, out int bytesread)
+        private static void read_variable_length_uint64(ReadOnlySpan<byte> bytes, out UInt64 parsedint, out int bytesread)
         {
             bytesread = 0;
             parsedint = 0;
@@ -669,7 +714,6 @@ namespace Mabinogi_Damage_tracker
             {
                 if (bytesread == 10)
                 {
-                    //we read more bytes than we should have return an error
                     parsedint = 0;
                     bytesread = -1;
                     return;
@@ -678,7 +722,6 @@ namespace Mabinogi_Damage_tracker
                 {
                     if (b > 1 && bytesread == 9)
                     {
-                        //we read more bytes than we should have return an error
                         parsedint = 0;
                         bytesread = -1;
                         return;
@@ -692,8 +735,29 @@ namespace Mabinogi_Damage_tracker
             }
             parsedint = 0;
             bytesread = -1;
-            return;
         }
 
+        private static int CompareSequence(uint left, uint right)
+        {
+            return unchecked((int)(left - right));
+        }
+
+        private static void EnsureStreamWithinLimits(TcpStreamKey streamKey, TcpStreamState streamState)
+        {
+            if (streamState.Buffer.Count <= MaxStreamBufferBytes)
+            {
+                return;
+            }
+
+            ResetStream(streamKey, streamState, $"buffer exceeded {MaxStreamBufferBytes} bytes");
+        }
+
+        private static void ResetStream(TcpStreamKey streamKey, TcpStreamState streamState, string reason)
+        {
+            //LogsController.WriteLog($"[TCP] Resetting stream {streamKey}: {reason}");
+            streamState.Buffer.Clear();
+            streamState.PendingSegments.Clear();
+            streamState.NextSequence = null;
+        }
     }
 }
