@@ -59,6 +59,11 @@ namespace Mabinogi_Damage_Tracker
         { }
     }
 
+    public static class Damage_Options
+    {
+        public const UInt32 Proc = 0x80000000u;
+    }
+
     public static class Op_Codes
     {
         public const int ChannelCharacterInfoRequestR = 0x5209;
@@ -73,5 +78,6 @@ namespace Mabinogi_Damage_Tracker
         public const int VehicleInfo = 0x1FBD4;
         public const int ChatMessage = 21100;
         public const int healing = 37011;
+        public const int Proc = 37013;
     }
 }

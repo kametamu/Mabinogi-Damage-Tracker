@@ -12,6 +12,7 @@ using System.Collections.Generic;
 using System.Linq;
 using System.Net;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
 
 namespace Mabinogi_Damage_tracker
 {
@@ -26,6 +27,50 @@ namespace Mabinogi_Damage_tracker
         private const ushort TcpFlagRst = 0x04;
 
         private static DateTime lastStreamCleanupUtc = DateTime.MinValue;
+        private const UInt32 DamageOptionMultiline = 33554432;
+        private const int MaxRecentParentHits = 512;
+        private const int MaxRecentProcSignatures = 512;
+
+        private sealed class RecentDamageHit
+        {
+            public UInt64 AttackerId { get; init; }
+            public UInt64 EnemyId { get; init; }
+            public UInt32 ActionpackId { get; init; }
+            public UInt32 CombatActionId { get; init; }
+            public double Damage { get; init; }
+            public double Wound { get; init; }
+            public UInt32 ManaDamage { get; init; }
+            public UInt32 Options { get; init; }
+            public SkillId SkillId { get; init; }
+            public SkillId SubSkillId { get; init; }
+            public DateTime SavedAtUtc { get; init; }
+        }
+
+        private static class ProcSkillData
+        {
+            public const UInt16 RedoubledOffensive = 58009;
+            public const UInt16 Blast = 58100;
+            public const UInt16 Flare = 58101;
+
+            public static bool TryGetMultiplier(UInt16 skillId, out double multiplier)
+            {
+                switch (skillId)
+                {
+                    case RedoubledOffensive:
+                        multiplier = 2.00d;
+                        return true;
+                    case Blast:
+                        multiplier = 0.54d;
+                        return true;
+                    case Flare:
+                        multiplier = 0.48d;
+                        return true;
+                    default:
+                        multiplier = 0;
+                        return false;
+                }
+            }
+        }
 
         private readonly record struct TcpStreamKey(string SourceIp, int SourcePort, string DestinationIp, int DestinationPort)
         {
@@ -36,7 +81,12 @@ namespace Mabinogi_Damage_tracker
         {
             public List<byte> Buffer { get; } = new List<byte>();
             public SortedDictionary<uint, byte[]> PendingSegments { get; } = new SortedDictionary<uint, byte[]>();
+            public Dictionary<(UInt32 actionpackId, UInt64 enemyId), RecentDamageHit> RecentDamageHits { get; } = new Dictionary<(UInt32 actionpackId, UInt64 enemyId), RecentDamageHit>();
+            public Queue<((UInt32 actionpackId, UInt64 enemyId) cacheKey, DateTime savedAtUtc)> RecentDamageHitOrder { get; } = new Queue<((UInt32 actionpackId, UInt64 enemyId) cacheKey, DateTime savedAtUtc)>();
+            public HashSet<string> RecentProcSignatures { get; } = new HashSet<string>();
+            public Queue<string> RecentProcSignatureOrder { get; } = new Queue<string>();
             public uint? NextSequence { get; set; }
+            public UInt32 LastActionpackId { get; set; }
             public DateTime LastSeenUtc { get; set; }
         }
 
@@ -422,7 +472,10 @@ namespace Mabinogi_Damage_tracker
                         read_chat(packetBytes, consumedBytes, beginningOfPacketCursor);
                         break;
                     case Op_Codes.CombatActionPack:
-                        pack_damage(packetBytes, consumedBytes, (int)subPacketLength, beginningOfPacketCursor);
+                        pack_damage(packetBytes, consumedBytes, (int)subPacketLength, beginningOfPacketCursor, streamState);
+                        break;
+                    case Op_Codes.Proc:
+                        pack_proc(packetBytes, consumedBytes, (int)subPacketLength, beginningOfPacketCursor, streamState);
                         break;
                 }
 
@@ -488,7 +541,7 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
-        private static void pack_damage(ReadOnlySpan<byte> payloadData, int cursor, int sub_packet_length, int begining_of_packet_cursor)
+        private static void pack_damage(ReadOnlySpan<byte> payloadData, int cursor, int sub_packet_length, int begining_of_packet_cursor, TcpStreamState streamState)
         {
             uint subsubPackLen = 0;
 
@@ -566,6 +619,7 @@ namespace Mabinogi_Damage_tracker
                 UInt64 enemy_id = 0;
                 SkillId skill = 0;
                 SkillId subskill = 0;
+                streamState.LastActionpackId = actionpack_id;
                 string throwawaypacket = "";
 
                 for (int i = 0; i < subsub_packet_count; i++)
@@ -636,7 +690,7 @@ namespace Mabinogi_Damage_tracker
                         UInt32 manaDamage = BinaryPrimitives.ReadUInt32BigEndian(payloadData.Slice(cursor));
                         cursor += sizeof(UInt32);
 
-                        if ((options & 33554432) != 0)
+                        if ((options & DamageOptionMultiline) != 0)
                         {
                             Debug.WriteLine("multiline found saving packet");
                         }
@@ -648,7 +702,8 @@ namespace Mabinogi_Damage_tracker
 
                         LogsController.WriteLog(string.Format("[DAMAGE] Attacker: {0} -> Enemy: {1} for {2}", attacker_id, enemy_id, damage));
                         Debug.WriteLine("Damage {0}, Wound {1}, mana Damage {2}, Attacker {3} {4} -> Enemy {5}, with {6} : {7}", damage.ToString("0.0"), wound.ToString("0.0"), manaDamage, attacker_id, "", enemy_id, skill, subskill);
-                        db_helper.add_damage((Int64)attacker_id, damage, wound, (int)manaDamage, (Int64)enemy_id, (int)skill, (int)subskill);
+                        db_helper.add_damage((Int64)attacker_id, damage, wound, (int)manaDamage, (Int64)enemy_id, (int)skill, (int)subskill, (long)actionpack_id, (long)combatActionID, (long)options);
+                        cache_recent_damage_hit(streamState, actionpack_id, combatActionID, attacker_id, enemy_id, damage, wound, manaDamage, options, skill, subskill);
                     }
                     cursor = subsub_pack_start_cursor + (int)subsubPackLen;
                 }
@@ -664,6 +719,118 @@ namespace Mabinogi_Damage_tracker
                 cursor = sub_packet_length + begining_of_packet_cursor;
                 Debug.WriteLine("caught an execption after finding a damage packet: ex {0}", ex.ToString());
             }
+        }
+
+        private static void pack_proc(ReadOnlySpan<byte> payloadData, int cursor, int sub_packet_length, int begining_of_packet_cursor, TcpStreamState streamState)
+        {
+            try
+            {
+                int payloadLength = (begining_of_packet_cursor + sub_packet_length) - cursor;
+                if (payloadLength < 10)
+                {
+                    return;
+                }
+
+                ReadOnlySpan<byte> procPayload = payloadData.Slice(cursor, payloadLength);
+                UInt64 targetEntityId = BinaryPrimitives.ReadUInt64BigEndian(procPayload.Slice(0, sizeof(UInt64)));
+                UInt16 procSkillId = BinaryPrimitives.ReadUInt16BigEndian(procPayload.Slice(procPayload.Length - sizeof(UInt16)));
+
+                Debug.WriteLine("[PROC] observed target {0}, skill {1}, actionpack {2}", targetEntityId, procSkillId, streamState.LastActionpackId);
+                //LogsController.WriteLog(string.Format("[PROC] Observed target {0}, skill {1}, actionpack {2}", targetEntityId, procSkillId, streamState.LastActionpackId));
+
+                if (!ProcSkillData.TryGetMultiplier(procSkillId, out double multiplier))
+                {
+                    return;
+                }
+
+                UInt32 parentActionpackId = streamState.LastActionpackId;
+                if (parentActionpackId == 0)
+                {
+                    LogsController.WriteLog(string.Format("[PROC] Parent actionpack missing target {0}, skill {1}", targetEntityId, procSkillId));
+                    Debug.WriteLine("[PROC] parent actionpack missing for target {0}, skill {1}", targetEntityId, procSkillId);
+                    return;
+                }
+
+                if (!streamState.RecentDamageHits.TryGetValue((parentActionpackId, targetEntityId), out RecentDamageHit? parentHit))
+                {
+                    LogsController.WriteLog(string.Format("[PROC] Parent not found target {0}, skill {1}, actionpack {2}", targetEntityId, procSkillId, parentActionpackId));
+                    Debug.WriteLine("[PROC] parent not found target {0}, skill {1}, actionpack {2}", targetEntityId, procSkillId, parentActionpackId);
+                    return;
+                }
+
+                string signature = create_proc_signature(parentActionpackId, targetEntityId, procSkillId, procPayload);
+                if (!remember_proc_signature(streamState, signature))
+                {
+                    LogsController.WriteLog(string.Format("[PROC] Duplicate dropped target {0}, skill {1}, actionpack {2}", targetEntityId, procSkillId, parentActionpackId));
+                    Debug.WriteLine("[PROC] duplicate dropped target {0}, skill {1}, actionpack {2}", targetEntityId, procSkillId, parentActionpackId);
+                    return;
+                }
+
+                double procDamage = parentHit.Damage * multiplier;
+                //LogsController.WriteLog(string.Format("[PROC] Parent matched target {0}, skill {1}, actionpack {2}, parent damage {3}", targetEntityId, procSkillId, parentActionpackId, parentHit.Damage));
+                Debug.WriteLine("[PROC] parent matched target {0}, skill {1}, actionpack {2}, parent damage {3}, proc damage {4}", targetEntityId, procSkillId, parentActionpackId, parentHit.Damage, procDamage);
+
+                db_helper.add_damage((long)parentHit.AttackerId, procDamage, 0, 0, (long)targetEntityId, procSkillId, 0, parentActionpackId, parentHit.CombatActionId, Damage_Options.Proc);
+                LogsController.WriteLog(string.Format("[PROC] Saved target {0}, skill {1}, actionpack {2}, damage {3}", targetEntityId, procSkillId, parentActionpackId, procDamage));
+                Debug.WriteLine("[PROC] saved target {0}, skill {1}, actionpack {2}, damage {3}", targetEntityId, procSkillId, parentActionpackId, procDamage);
+            }
+            catch (Exception ex)
+            {
+                Debug.WriteLine("caught an exception after finding a proc packet: ex {0}", ex.ToString());
+            }
+        }
+
+        private static void cache_recent_damage_hit(TcpStreamState streamState, UInt32 actionpackId, UInt32 combatActionId, UInt64 attackerId, UInt64 enemyId, double damage, double wound, UInt32 manaDamage, UInt32 options, SkillId skillId, SkillId subSkillId)
+        {
+            (UInt32 actionpackId, UInt64 enemyId) cacheKey = (actionpackId, enemyId);
+            DateTime savedAtUtc = DateTime.UtcNow;
+            streamState.RecentDamageHits[cacheKey] = new RecentDamageHit
+            {
+                ActionpackId = actionpackId,
+                CombatActionId = combatActionId,
+                AttackerId = attackerId,
+                EnemyId = enemyId,
+                Damage = damage,
+                Wound = wound,
+                ManaDamage = manaDamage,
+                Options = options,
+                SkillId = skillId,
+                SubSkillId = subSkillId,
+                SavedAtUtc = savedAtUtc
+            };
+
+            streamState.RecentDamageHitOrder.Enqueue((cacheKey, savedAtUtc));
+            while (streamState.RecentDamageHitOrder.Count > MaxRecentParentHits)
+            {
+                ((UInt32 actionpackId, UInt64 enemyId) cacheKey, DateTime savedAtUtc) expiredEntry = streamState.RecentDamageHitOrder.Dequeue();
+                if (streamState.RecentDamageHits.TryGetValue(expiredEntry.cacheKey, out RecentDamageHit? currentHit) && currentHit.SavedAtUtc == expiredEntry.savedAtUtc)
+                {
+                    streamState.RecentDamageHits.Remove(expiredEntry.cacheKey);
+                }
+            }
+        }
+
+        private static string create_proc_signature(UInt32 parentActionpackId, UInt64 targetEntityId, UInt16 procSkillId, ReadOnlySpan<byte> procPayload)
+        {
+            byte[] payloadHash = SHA256.HashData(procPayload);
+            return string.Format("{0}:{1}:{2}:{3}", parentActionpackId, targetEntityId, procSkillId, Convert.ToHexString(payloadHash));
+        }
+
+        private static bool remember_proc_signature(TcpStreamState streamState, string signature)
+        {
+            if (!streamState.RecentProcSignatures.Add(signature))
+            {
+                return false;
+            }
+
+            streamState.RecentProcSignatureOrder.Enqueue(signature);
+            while (streamState.RecentProcSignatureOrder.Count > MaxRecentProcSignatures)
+            {
+                string expiredSignature = streamState.RecentProcSignatureOrder.Dequeue();
+                streamState.RecentProcSignatures.Remove(expiredSignature);
+            }
+
+            return true;
         }
 
         private static void read_chat(ReadOnlySpan<byte> payloadData, int cursor, int begining_of_packet_cursor)

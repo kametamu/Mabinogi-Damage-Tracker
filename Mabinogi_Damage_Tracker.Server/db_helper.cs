@@ -36,6 +36,9 @@ namespace Mabinogi_Damage_tracker
                     enemyid NUMERIC NOT NULL,
                     skill INT NOT NULL,
                     subskill INT NOT NULL,
+                    actionpackid NUMERIC DEFAULT 0,
+                    combatactionid NUMERIC DEFAULT 0,
+                    options NUMERIC DEFAULT 0,
                     dt TEXT NOT NULL,
                     ut INTEGER NOT NULL)";
 
@@ -68,6 +71,9 @@ namespace Mabinogi_Damage_tracker
                 sqliteCommand.ExecuteNonQuery();
                 sqliteCommand.CommandText = create_damage;
                 sqliteCommand.ExecuteNonQuery();
+                EnsureDamageColumn(sqliteCommand, "actionpackid", "NUMERIC DEFAULT 0");
+                EnsureDamageColumn(sqliteCommand, "combatactionid", "NUMERIC DEFAULT 0");
+                EnsureDamageColumn(sqliteCommand, "options", "NUMERIC DEFAULT 0");
                 sqliteCommand.CommandText = create_heal;
                 sqliteCommand.ExecuteNonQuery();
                 sqliteCommand.CommandText = create_recording;
@@ -75,6 +81,24 @@ namespace Mabinogi_Damage_tracker
                 sqliteCommand.CommandText = create_adapter;
                 sqliteCommand.ExecuteNonQuery();
             }
+        }
+
+        private static void EnsureDamageColumn(SqliteCommand sqliteCommand, string columnName, string columnDefinition)
+        {
+            sqliteCommand.CommandText = string.Format("PRAGMA table_info(damages);");
+            using (SqliteDataReader reader = sqliteCommand.ExecuteReader())
+            {
+                while (reader.Read())
+                {
+                    if (string.Equals(reader["name"]?.ToString(), columnName, StringComparison.OrdinalIgnoreCase))
+                    {
+                        return;
+                    }
+                }
+            }
+
+            sqliteCommand.CommandText = string.Format("ALTER TABLE damages ADD COLUMN {0} {1}", columnName, columnDefinition);
+            sqliteCommand.ExecuteNonQuery();
         }
 
         public static void add_player(string playername, Int64 playerid)
@@ -140,14 +164,19 @@ namespace Mabinogi_Damage_tracker
 
         public static void add_damage(Int64 playerid, double damage, double wound, int manadamage, Int64 enemyid, int skill, int subskill)
         {
+            add_damage(playerid, damage, wound, manadamage, enemyid, skill, subskill, 0, 0, 0);
+        }
+
+        public static void add_damage(Int64 playerid, double damage, double wound, int manadamage, Int64 enemyid, int skill, int subskill, long actionpackid, long combatactionid, long options)
+        {
             try
             {
                 using (SqliteConnection connection = new SqliteConnection(db_connection))
                 {
                     connection.Open();
                     SqliteCommand add_command = new SqliteCommand(@"
-                    INSERT INTO damages (playerid, damage, wound, manadamage, enemyid, skill, subskill, dt, ut)
-                        VALUES(@id,@dmg,@wound,@manadamage,@enemyid,@skill,@subskill,datetime(), unixepoch())
+                    INSERT INTO damages (playerid, damage, wound, manadamage, enemyid, skill, subskill, actionpackid, combatactionid, options, dt, ut)
+                        VALUES(@id,@dmg,@wound,@manadamage,@enemyid,@skill,@subskill,@actionpackid,@combatactionid,@options,datetime(), unixepoch())
                     ", connection);
                     add_command.Parameters.AddWithValue("@id", playerid);
                     add_command.Parameters.AddWithValue("@dmg", damage);
@@ -156,6 +185,9 @@ namespace Mabinogi_Damage_tracker
                     add_command.Parameters.AddWithValue("@enemyid", enemyid);
                     add_command.Parameters.AddWithValue("@skill", skill);
                     add_command.Parameters.AddWithValue("@subskill", subskill);
+                    add_command.Parameters.AddWithValue("@actionpackid", actionpackid);
+                    add_command.Parameters.AddWithValue("@combatactionid", combatactionid);
+                    add_command.Parameters.AddWithValue("@options", options);
                     add_command.ExecuteNonQueryAsync();
                 }
             }
