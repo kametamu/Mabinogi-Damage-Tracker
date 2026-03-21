@@ -23,6 +23,7 @@ export default function SettingsMenu() {
     const { burstCount, setBurstCount } = useContext(AppContext);
     const { largestDamageInstanceCount, setLargestDamageInstantCount } = useContext(AppContext);
     const { skillUsageTopN, setSkillUsageTopN } = useContext(AppContext);
+    const { topEnemyCount, setTopEnemyCount } = useContext(AppContext);
     const [themeChecked, setThemeChecked] = useState(mode === 'dark' ? true : false);
     const [adapters, setAdapters] = useState([]);
     const [selectedAdapter, setSelectedAdapter] = useState('');
@@ -157,6 +158,17 @@ export default function SettingsMenu() {
                         ))}
                     </Select>
                 </FormControl>
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Box>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.topEnemyCount')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.topEnemyCountDescription')}</Typography>
+                </Box>
+                <NumberField label="Top Enemy Count" min={1} max={10}
+                    value={topEnemyCount}
+                    onValueChange={(value) => {
+                        setTopEnemyCount(value);
+                    }} />
             </Box>
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>

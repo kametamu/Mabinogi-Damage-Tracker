@@ -69,15 +69,15 @@ namespace Mabinogi_Damage_tracker.Controllers
             return Ok(Json(players));
         }
 
-        public JsonResult GetDamagesBetweenUt(int start_ut, int end_ut)
+        public JsonResult GetDamagesBetweenUt(int start_ut, int end_ut, int? top_enemy_count = null)
         {
-            List<Damage_Simple> damages = db_helper.Get_Damages_Between_Ut(start_ut, end_ut);
+            List<Damage_Simple> damages = db_helper.Get_Damages_Between_Ut(start_ut, end_ut, top_enemy_count);
             return Json(damages);
         }
 
-        public JsonResult GetSkillDamagesBetweenUt(int start_ut, int end_ut)
+        public JsonResult GetSkillDamagesBetweenUt(int start_ut, int end_ut, int? top_enemy_count = null)
         {
-            List<Skill_Damage_Record> damages = db_helper.Get_Skill_Damages_Between_Ut(start_ut, end_ut);
+            List<Skill_Damage_Record> damages = db_helper.Get_Skill_Damages_Between_Ut(start_ut, end_ut, top_enemy_count);
             return Json(damages);
         }
 
@@ -108,14 +108,14 @@ namespace Mabinogi_Damage_tracker.Controllers
             return Json(db_helper.Get_Chunked_Damage_OverUT(start_ut, end_ut, chunk_size));
         }
 
-        public JsonResult GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes(int start_ut, int end_ut, int burst_timeframe, int count)
+        public JsonResult GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes(int start_ut, int end_ut, int burst_timeframe, int count, int? top_enemy_count = null)
         {
-            return Json(db_helper.Get_ListOf_Distinct_Biggest_BurstofDamage_InUT_BetweenTimes(start_ut, end_ut, burst_timeframe, count));
+            return Json(db_helper.Get_ListOf_Distinct_Biggest_BurstofDamage_InUT_BetweenTimes(start_ut, end_ut, burst_timeframe, count, top_enemy_count));
         }
 
-        public JsonResult GetListOfDistinctLargestSingleDamageInstance(int start_ut, int end_ut, int count)
+        public JsonResult GetListOfDistinctLargestSingleDamageInstance(int start_ut, int end_ut, int count, int? top_enemy_count = null)
         {
-            return Json(db_helper.Get_ListOf_Distinct_Largest_Single_Damage_Instance(start_ut, end_ut, count));
+            return Json(db_helper.Get_ListOf_Distinct_Largest_Single_Damage_Instance(start_ut, end_ut, count, top_enemy_count));
         }
 
         public JsonResult GetLastDamageRowId()
@@ -136,9 +136,9 @@ namespace Mabinogi_Damage_tracker.Controllers
             return Json(damage_series);
         }
 
-        public JsonResult GetAggregatedDamageSeriesGroupedByPlayers(int start_ut, int end_ut)
+        public JsonResult GetAggregatedDamageSeriesGroupedByPlayers(int start_ut, int end_ut, int? top_enemy_count = null)
         {
-            List<object> damage_series = db_helper.Get_AggregatedDamage_GroupedByPlayers_BetweenUT(start_ut, end_ut);
+            List<object> damage_series = db_helper.Get_AggregatedDamage_GroupedByPlayers_BetweenUT(start_ut, end_ut, top_enemy_count);
             return Json(damage_series);
         }
 

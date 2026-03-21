@@ -26,6 +26,9 @@ function Dashboard() {
     const [skillUsageTopN, setSkillUsageTopN] = useState(
         () => Number(localStorage.getItem('skillUsageTopN')) || 10
     );
+    const [topEnemyCount, setTopEnemyCount] = useState(
+        () => Number(localStorage.getItem('topEnemyCount')) || 3
+    );
 
     useEffect(() => {
         document.documentElement.setAttribute('data-mui-color-scheme', mode);
@@ -48,6 +51,10 @@ function Dashboard() {
         localStorage.setItem('skillUsageTopN', skillUsageTopN)
     }, [skillUsageTopN])
 
+    useEffect(() => {
+        localStorage.setItem('topEnemyCount', topEnemyCount)
+    }, [topEnemyCount])
+
     return (
         <AppContext.Provider
             value={{
@@ -63,6 +70,8 @@ function Dashboard() {
                 setLargestDamageInstantCount,
                 skillUsageTopN,
                 setSkillUsageTopN,
+                topEnemyCount,
+                setTopEnemyCount,
             }}
         >
             <AppTheme mode={mode}>

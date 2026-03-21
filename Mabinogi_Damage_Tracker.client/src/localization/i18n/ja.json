@@ -38,7 +38,9 @@
     "restartDescription": "パーサーサービスを再起動します",
     "restart": "再起動",
     "skillUsageTopN": "スキル使用 Top N",
-    "skillUsageTopNDescription": "スキル使用割合チャートで表示するスキル数の初期値を設定し、残りは「その他」にまとめます。"
+    "skillUsageTopNDescription": "スキル使用割合チャートで表示するスキル数の初期値を設定し、残りは「その他」にまとめます。",
+    "topEnemyCount": "Top X 対象数",
+    "topEnemyCountDescription": "分析画面の Top X Targets フィルターで使う初期 X を設定します。対象は選択中の時間範囲内の合計ダメージ量で順位付けされます。"
   },
   "live": {
     "title": "リアルタイム",
@@ -63,7 +65,14 @@
     "allPlayers": "全プレイヤー",
     "skill": "スキル",
     "skillUsageTopN": "表示スキル数",
-    "otherSkills": "その他"
+    "otherSkills": "その他",
+    "enemyFilter": "対象フィルター",
+    "enemyFilterDescription": "選択中の時間範囲で合計ダメージ量が多い対象に絞って、ダメージ分析を表示します。",
+    "enemyFilterAll": "全ダメージ",
+    "enemyFilterTop1": "TOP1",
+    "enemyFilterTopX": "Top {{count}} 対象",
+    "totalDamageTop1": "合計ダメージ (TOP1)",
+    "totalDamageTopX": "合計ダメージ (Top {{count}} 対象)"
   },
   "players": {
     "title": "プレイヤー",

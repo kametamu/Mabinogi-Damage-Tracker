@@ -38,7 +38,9 @@
     "restartDescription": "Restarts the parser service",
     "restart": "Restart",
     "skillUsageTopN": "Skill Usage Top N",
-    "skillUsageTopNDescription": "Sets the default number of skills shown in the skill usage ratio chart before grouping the rest as Other."
+    "skillUsageTopNDescription": "Sets the default number of skills shown in the skill usage ratio chart before grouping the rest as Other.",
+    "topEnemyCount": "Top X target count",
+    "topEnemyCountDescription": "Sets the default X used by the Analytics Top X Targets filter. Targets are ranked by total damage dealt within the selected time range."
   },
   "live": {
     "title": "Live",
@@ -63,7 +65,14 @@
     "allPlayers": "All Players",
     "skill": "Skill",
     "skillUsageTopN": "Top N Skills",
-    "otherSkills": "Other"
+    "otherSkills": "Other",
+    "enemyFilter": "Enemy Target Filter",
+    "enemyFilterDescription": "Filters damage analytics to targets ranked by total damage dealt within the selected time range.",
+    "enemyFilterAll": "All Damage",
+    "enemyFilterTop1": "TOP1",
+    "enemyFilterTopX": "Top {{count}} Targets",
+    "totalDamageTop1": "Total Damage (TOP1)",
+    "totalDamageTopX": "Total Damage (Top {{count}} Targets)"
   },
   "players": {
     "title": "Players",

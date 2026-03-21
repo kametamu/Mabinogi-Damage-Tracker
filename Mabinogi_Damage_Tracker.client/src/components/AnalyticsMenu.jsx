@@ -10,6 +10,7 @@ import FormControl from '@mui/material/FormControl';
 import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
+import Stack from '@mui/material/Stack';
 import { DataGrid } from '@mui/x-data-grid';
 import DamageCard from './DamageCard';
 import PlayerCountCard from './PlayerCountCard';
@@ -72,7 +73,7 @@ function formatLargeNumber(num) {
 
 export default function AnalyticsMenu({ start_ut, end_ut }) {
     const { t, i18n } = useTranslation();
-    const { burstCount, largestDamageInstanceCount, skillUsageTopN } = useContext(AppContext)
+    const { burstCount, largestDamageInstanceCount, skillUsageTopN, topEnemyCount } = useContext(AppContext)
     const [damageOverTimeData, setDamageOverTimeData] = useState([])
     const [damagePieChartData, setDamagePieChartData] = useState([])
     const [combinedDamageOverTimeData, setCombinedDamageOverTimeData] = useState([])
@@ -88,15 +89,38 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     const [skillDamagesRaw, setSkillDamagesRaw] = useState([]);
     const [selectedSkillPlayerId, setSelectedSkillPlayerId] = useState('all');
     const [skillUsageTopNLocal, setSkillUsageTopNLocal] = useState(skillUsageTopN);
+    const [enemyFilterMode, setEnemyFilterMode] = useState('all');
+
+    const activeTopEnemyCount = enemyFilterMode === 'top1' ? 1 : enemyFilterMode === 'topx' ? topEnemyCount : 0;
+
+    const buildAnalyticsUrl = (path, params = {}, includeEnemyFilter = true) => {
+        const searchParams = new URLSearchParams({
+            start_ut,
+            end_ut,
+            ...params,
+        });
+
+        if (includeEnemyFilter && activeTopEnemyCount > 0) {
+            searchParams.set('top_enemy_count', String(activeTopEnemyCount));
+        }
+
+        return `http://${window.location.hostname}:5004/Home/${path}?${searchParams.toString()}`;
+    };
+
+    const damageCardTitle = useMemo(() => {
+        if (enemyFilterMode === 'top1') return t('analytics.totalDamageTop1');
+        if (enemyFilterMode === 'topx') return t('analytics.totalDamageTopX', { count: topEnemyCount });
+        return t('common.totalDamage');
+    }, [enemyFilterMode, t, topEnemyCount]);
 
     useEffect(() => {
         async function getDamageBands() {
             const newBands = []
             const newGraphBands = []
-            await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${60}&count=${burstCount}`)
+            await fetch(buildAnalyticsUrl('GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes', { burst_timeframe: 60, count: burstCount }))
                 .then(response => response.json())
                 .then(data => {
-                    const bands = data.map((res) => ({
+                    const bands = (data ?? []).map((res) => ({
                         label: '60s',
                         start: formatTimeStamp(res.unix_timestamp),
                         end: formatTimeStamp(res.unix_timestamp + 60),
@@ -108,10 +132,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     }
                 })
 
-            await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${30}&count=${burstCount}`)
+            await fetch(buildAnalyticsUrl('GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes', { burst_timeframe: 30, count: burstCount }))
                 .then(response => response.json())
                 .then(data => {
-                    const bands = data.map((res) => ({
+                    const bands = (data ?? []).map((res) => ({
                         label: '30s',
                         start: formatTimeStamp(res.unix_timestamp),
                         end: formatTimeStamp(res.unix_timestamp + 30),
@@ -123,10 +147,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     }
                 })
 
-            await fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes?start_ut=${start_ut}&end_ut=${end_ut}&burst_timeframe=${15}&count=${burstCount}`)
+            await fetch(buildAnalyticsUrl('GetListOfDistinctBiggestBurstofDamageInUTBetweenTimes', { burst_timeframe: 15, count: burstCount }))
                 .then(response => response.json())
                 .then(data => {
-                    const bands = data.map((res) => ({
+                    const bands = (data ?? []).map((res) => ({
                         label: '15s',
                         start: formatTimeStamp(res.unix_timestamp),
                         end: formatTimeStamp(res.unix_timestamp + 15),
@@ -141,10 +165,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             setBands(newBands)
         }
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetAggregatedDamageSeriesGroupedByPlayers?start_ut=${start_ut}&end_ut=${end_ut}`)
+        fetch(buildAnalyticsUrl('GetAggregatedDamageSeriesGroupedByPlayers'))
             .then(response => response.json())
             .then(data => {
-                const sortedData = data.sort((a, b) => (b.data.at(-1) ?? 0) - (a.data.at(-1) ?? 0));
+                const sortedData = (data ?? []).sort((a, b) => (b.data.at(-1) ?? 0) - (a.data.at(-1) ?? 0));
                 const newLineChartData = transformDataLineChartDamage(sortedData)
                 setDamageOverTimeData(newLineChartData);
 
@@ -159,25 +183,26 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             })
             .catch(error => console.error('Error:', error));
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetListOfDistinctLargestSingleDamageInstance?start_ut=${start_ut}&end_ut=${end_ut}&count=${largestDamageInstanceCount}`)
+        fetch(buildAnalyticsUrl('GetListOfDistinctLargestSingleDamageInstance', { count: largestDamageInstanceCount }))
             .then(response => response.json())
             .then(data => {
-                setLargestDamageInstances(data)
-                setGraphLargestDamageInstance(data[0])
+                const nextData = data ?? [];
+                setLargestDamageInstances(nextData)
+                setGraphLargestDamageInstance(nextData[0] ?? null)
             })
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetTotalPlayerHealing?start_ut=${start_ut}&end_ut=${end_ut}`)
+        fetch(buildAnalyticsUrl('GetTotalPlayerHealing', {}, false))
             .then(response => response.json())
             .then(data => {
                 setTotalHealing(data)
             })
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetDamagesBetweenUt?start_ut=${start_ut}&end_ut=${end_ut}`)
+        fetch(buildAnalyticsUrl('GetDamagesBetweenUt'))
             .then(response => response.json())
             .then(data => {
                 const dmgMap = new Map();
 
-                const series = data.reduce((acc, damageSimple) => {
+                const series = (data ?? []).reduce((acc, damageSimple) => {
                     let entry = acc.find((element) => element.label === damageSimple.player_name);
 
                     if (!entry) {
@@ -206,7 +231,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                 setScatterPlotSeries(series)
             })
 
-        fetch(`http://${window.location.hostname}:5004/Home/GetSkillDamagesBetweenUt?start_ut=${start_ut}&end_ut=${end_ut}`)
+        fetch(buildAnalyticsUrl('GetSkillDamagesBetweenUt'))
             .then(response => response.json())
             .then(data => {
                 const nextData = data ?? [];
@@ -226,7 +251,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             });
 
         getDamageBands()
-    }, [start_ut, end_ut, burstCount, largestDamageInstanceCount]);
+    }, [start_ut, end_ut, burstCount, largestDamageInstanceCount, activeTopEnemyCount]);
 
     useEffect(() => {
         setSkillUsageTopNLocal(skillUsageTopN);
@@ -319,10 +344,31 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     return (
         <Box>
             <Typography variant="h2" sx={{ marginBottom: '8px' }}>{t('analytics.title')}</Typography>
+            <Paper sx={{ p: 2, mb: 2 }}>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between">
+                    <Box>
+                        <Typography variant="h6">{t('analytics.enemyFilter')}</Typography>
+                        <Typography variant="body2" color="text.secondary">{t('analytics.enemyFilterDescription')}</Typography>
+                    </Box>
+                    <FormControl size="small" sx={{ minWidth: 220 }}>
+                        <InputLabel id="enemy-filter-mode-label">{t('analytics.enemyFilter')}</InputLabel>
+                        <Select
+                            labelId="enemy-filter-mode-label"
+                            value={enemyFilterMode}
+                            label={t('analytics.enemyFilter')}
+                            onChange={(event) => setEnemyFilterMode(event.target.value)}
+                        >
+                            <MenuItem value="all">{t('analytics.enemyFilterAll')}</MenuItem>
+                            <MenuItem value="top1">{t('analytics.enemyFilterTop1')}</MenuItem>
+                            <MenuItem value="topx">{t('analytics.enemyFilterTopX', { count: topEnemyCount })}</MenuItem>
+                        </Select>
+                    </FormControl>
+                </Stack>
+            </Paper>
             <Grid container spacing={{ xs: 1, md: 2 }} alignItems="stretch" sx={{ flexGrow: 1 }}>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} >
                     {combinedDamageOverTimeData ?
-                        <DamageCard chartData={combinedDamageOverTimeData} totalDamage={totalDamage} />
+                        <DamageCard chartData={combinedDamageOverTimeData} totalDamage={totalDamage} title={damageCardTitle} />
                         :
                         <Skeleton variant="rounded" />
                     }
