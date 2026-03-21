@@ -907,7 +907,7 @@ namespace Mabinogi_Damage_tracker
                         ? $" AND enemyid IN ({GetTopEnemyIdsSubquery()})"
                         : string.Empty;
 
-                    using (var command = new SqliteCommand($@"
+                    string burstQuery = $@"
                     select DISTINCT MAX(sum_dmg), plyr.playername, chunk_start, bigselect.playerid
                     FROM(
 	                    select sum(damage) as sum_dmg, (ut/@burst_timeframe)*@burst_timeframe as chunk_start, playerid
@@ -934,7 +934,9 @@ namespace Mabinogi_Damage_tracker
 					    Group by bigselect.playerid
 					    order by sum_dmg DESC
 					    limit @count
-                    ", connection))
+                    ";
+
+                    using (var command = new SqliteCommand(burstQuery, connection))
                     {
                         command.Parameters.AddWithValue("@start_ut", start_ut);
                         command.Parameters.AddWithValue("@end_ut", end_ut);
