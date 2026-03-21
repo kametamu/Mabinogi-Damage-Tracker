@@ -430,28 +430,25 @@ namespace Mabinogi_Damage_tracker
 
         private static string GetTopEnemyIdsSubquery()
         {
-            return @"
-                SELECT enemyid
-                FROM damages
-                WHERE ut BETWEEN @start_ut AND @end_ut
-                GROUP BY enemyid
-                ORDER BY SUM(damage) DESC
-                LIMIT @top_enemy_count
-            ";
+            return "SELECT enemyid FROM damages WHERE ut BETWEEN @start_ut AND @end_ut GROUP BY enemyid ORDER BY SUM(damage) DESC LIMIT @top_enemy_count";
+        }
+
+        private static string GetTopEnemyFilterClause(int? top_enemy_count, string damageTableAlias = "damages")
+        {
+            if (!HasTopEnemyFilter(top_enemy_count))
+            {
+                return string.Empty;
+            }
+
+            string aliasPrefix = string.IsNullOrWhiteSpace(damageTableAlias) ? string.Empty : $"{damageTableAlias}.";
+            return $" AND {aliasPrefix}enemyid IN ({GetTopEnemyIdsSubquery()})";
         }
 
         private static string GetDamageWhereClause(int? top_enemy_count, string damageTableAlias = "damages")
         {
             string aliasPrefix = string.IsNullOrWhiteSpace(damageTableAlias) ? string.Empty : $"{damageTableAlias}.";
             string whereClause = $"WHERE {aliasPrefix}ut BETWEEN @start_ut AND @end_ut";
-
-            if (HasTopEnemyFilter(top_enemy_count))
-            {
-                whereClause += $"
-                        AND {aliasPrefix}enemyid IN ({GetTopEnemyIdsSubquery()})";
-            }
-
-            return whereClause;
+            return whereClause + GetTopEnemyFilterClause(top_enemy_count, damageTableAlias);
         }
 
         private static void AddTopEnemyCountParameter(SqliteCommand command, int? top_enemy_count)
