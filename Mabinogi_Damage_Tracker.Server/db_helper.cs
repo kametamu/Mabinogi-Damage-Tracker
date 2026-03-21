@@ -197,9 +197,9 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
-        public static Damage_Simple Get_Largest_Single_Damage_Instance(int start_ut, int end_ut)
+        public static Damage_Simple Get_Largest_Single_Damage_Instance(int start_ut, int end_ut, int? top_enemy_count = null)
         {
-            return Get_ListOf_Distinct_Largest_Single_Damage_Instance(start_ut, end_ut, 1)[0];
+            return Get_ListOf_Distinct_Largest_Single_Damage_Instance(start_ut, end_ut, 1, top_enemy_count)[0];
         }
 
         public static List<Damage_Simple> Get_ListOf_Distinct_Largest_Single_Damage_Instance(int start_ut, int end_ut, int count, int? top_enemy_count = null)
@@ -673,24 +673,26 @@ namespace Mabinogi_Damage_tracker
             }
         }
 
-        public static List<object> Get_AllDamages_GroupedByPlayers_BetweenUT(Int32 start_ut, Int32 end_ut)
+        public static List<object> Get_AllDamages_GroupedByPlayers_BetweenUT(Int32 start_ut, Int32 end_ut, int? top_enemy_count = null)
         {
             try
             {
                 using (SqliteConnection connection = new SqliteConnection(db_connection))
                 {
                     connection.Open();
-                    using (SqliteCommand command = new SqliteCommand(@"
+                    string query = $@"
                         SELECT damages.playerid, damage, playername, ut
                         FROM damages
                         left join players on damages.playerid = players.playerid
-                        where ut BETWEEN @start_ut AND @end_ut
-                        ORDER BY ut;
-                    ", connection))
+                        {GetDamageWhereClause(top_enemy_count)}
+                        ORDER BY ut;";
+
+                    using (SqliteCommand command = new SqliteCommand(query, connection))
                     {
 
                         command.Parameters.AddWithValue("@start_ut", start_ut);
                         command.Parameters.AddWithValue("@end_ut", end_ut);
+                        AddTopEnemyCountParameter(command, top_enemy_count);
 
 
                         var players = new Dictionary<long, string>();
@@ -879,9 +881,9 @@ namespace Mabinogi_Damage_tracker
             return query_results;
         }
 
-        public static Damage_Simple Get_Biggest_BurstofDamage_InUT_BetweenTimes(int start_ut, int end_ut, int burst_timeframe)
+        public static Damage_Simple Get_Biggest_BurstofDamage_InUT_BetweenTimes(int start_ut, int end_ut, int burst_timeframe, int? top_enemy_count = null)
         {
-            return Get_ListOf_Distinct_Biggest_BurstofDamage_InUT_BetweenTimes(start_ut, end_ut, burst_timeframe, 1)[0];
+            return Get_ListOf_Distinct_Biggest_BurstofDamage_InUT_BetweenTimes(start_ut, end_ut, burst_timeframe, 1, top_enemy_count)[0];
         }
 
         /// <summary>
