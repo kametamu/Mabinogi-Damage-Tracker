@@ -48,7 +48,7 @@ namespace Mabinogi_Damage_tracker
 
         private static class ProcSkillData
         {
-            public const UInt16 ContinuityAttack = 58006;
+            public const UInt16 RedoubledOffensive = 58009;
             public const UInt16 Blast = 58100;
             public const UInt16 Flare = 58101;
 
@@ -56,7 +56,7 @@ namespace Mabinogi_Damage_tracker
             {
                 switch (skillId)
                 {
-                    case ContinuityAttack:
+                    case RedoubledOffensive:
                         multiplier = 2.00d;
                         return true;
                     case Blast:
@@ -736,7 +736,7 @@ namespace Mabinogi_Damage_tracker
                 UInt16 procSkillId = BinaryPrimitives.ReadUInt16BigEndian(procPayload.Slice(procPayload.Length - sizeof(UInt16)));
 
                 Debug.WriteLine("[PROC] observed target {0}, skill {1}, actionpack {2}", targetEntityId, procSkillId, streamState.LastActionpackId);
-                LogsController.WriteLog(string.Format("[PROC] Observed target {0}, skill {1}, actionpack {2}", targetEntityId, procSkillId, streamState.LastActionpackId));
+                //LogsController.WriteLog(string.Format("[PROC] Observed target {0}, skill {1}, actionpack {2}", targetEntityId, procSkillId, streamState.LastActionpackId));
 
                 if (!ProcSkillData.TryGetMultiplier(procSkillId, out double multiplier))
                 {
@@ -767,7 +767,7 @@ namespace Mabinogi_Damage_tracker
                 }
 
                 double procDamage = parentHit.Damage * multiplier;
-                LogsController.WriteLog(string.Format("[PROC] Parent matched target {0}, skill {1}, actionpack {2}, parent damage {3}", targetEntityId, procSkillId, parentActionpackId, parentHit.Damage));
+                //LogsController.WriteLog(string.Format("[PROC] Parent matched target {0}, skill {1}, actionpack {2}, parent damage {3}", targetEntityId, procSkillId, parentActionpackId, parentHit.Damage));
                 Debug.WriteLine("[PROC] parent matched target {0}, skill {1}, actionpack {2}, parent damage {3}, proc damage {4}", targetEntityId, procSkillId, parentActionpackId, parentHit.Damage, procDamage);
 
                 db_helper.add_damage((long)parentHit.AttackerId, procDamage, 0, 0, (long)targetEntityId, procSkillId, 0, parentActionpackId, parentHit.CombatActionId, Damage_Options.Proc);
