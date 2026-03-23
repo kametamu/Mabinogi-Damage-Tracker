@@ -37,7 +37,7 @@
     "restartParse": "Restart Parse",
     "restartDescription": "Restarts the parser service",
     "restart": "Restart",
-    "skillUsageTopN": "Skill Usage Top N",
+    "skillUsageTopN": "Top N Skills",
     "skillUsageTopNDescription": "Sets the default number of skills shown in the skill hit share chart before grouping the rest as Other.",
     "topEnemyCount": "Top X target count",
     "topEnemyCountDescription": "Sets the default X used by the Analytics Top X Targets filter. Targets are ranked by total damage dealt within the selected time range."
