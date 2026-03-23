@@ -308,6 +308,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
     const damageBySkillRows = useMemo(() => {
         const damageMap = new Map();
+        const totalFilteredSkillDamage = filteredSkillDamages.reduce((sum, row) => sum + row.damage, 0);
 
         filteredSkillDamages.forEach((row) => {
             const skillId = row.skill_id;
@@ -319,6 +320,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                 skillId,
                 skillName: getLocalizedSkillName(skillId, null, i18n.language),
                 totalDamage: damage,
+                damageShare: totalFilteredSkillDamage > 0 ? (damage / totalFilteredSkillDamage) * 100 : 0,
             }))
             .sort((a, b) => b.totalDamage - a.totalDamage);
     }, [filteredSkillDamages, i18n.language]);
@@ -338,6 +340,15 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             align: 'right',
             headerAlign: 'right',
             valueFormatter: (value) => formatLargeNumber(value),
+        },
+        {
+            field: 'damageShare',
+            headerName: t('analytics.share'),
+            type: 'number',
+            width: 140,
+            align: 'right',
+            headerAlign: 'right',
+            valueFormatter: (value) => `${Number(value ?? 0).toFixed(1)}%`,
         },
     ]), [t]);
 
@@ -457,7 +468,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
                 <Grid size={{ xs: 12, sm: 12, lg: 6, xl: 6 }}>
                     <Paper square={false} sx={{ p: 2, height: '100%', minHeight: 420, display: 'flex', flexDirection: 'column' }}>
-                        <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.skillUsageRatio')}</Typography>
+                        <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.skillHitShare')}</Typography>
                         <Box sx={{ flex: 1, minHeight: 0 }}>
                             <SkillUsagePieChart chartData={skillUsageRatioData} />
                         </Box>
