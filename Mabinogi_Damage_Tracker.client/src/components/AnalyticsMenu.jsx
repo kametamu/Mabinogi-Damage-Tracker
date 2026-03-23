@@ -11,7 +11,18 @@ import InputLabel from '@mui/material/InputLabel';
 import Select from '@mui/material/Select';
 import MenuItem from '@mui/material/MenuItem';
 import Stack from '@mui/material/Stack';
+import Button from '@mui/material/Button';
+import Dialog from '@mui/material/Dialog';
+import DialogActions from '@mui/material/DialogActions';
+import DialogContent from '@mui/material/DialogContent';
+import DialogTitle from '@mui/material/DialogTitle';
+import IconButton from '@mui/material/IconButton';
+import List from '@mui/material/List';
+import ListItem from '@mui/material/ListItem';
+import ListItemText from '@mui/material/ListItemText';
+import Snackbar from '@mui/material/Snackbar';
 import { DataGrid } from '@mui/x-data-grid';
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
 import DamageCard from './DamageCard';
 import PlayerCountCard from './PlayerCountCard';
 import TimeCard from './TimeCard';
@@ -71,6 +82,53 @@ function formatLargeNumber(num) {
     return formatted.replace(/\.0(?=[A-Z])/, '');
 }
 
+const EXCLUDED_INTERVAL_STORAGE_KEY = 'analyticsExcludedIntervals';
+const EXCLUDED_INTERVAL_MIN_DURATION = 10;
+const EXCLUDED_INTERVAL_DUPLICATE_TOLERANCE = 1;
+
+function formatDuration(lengthUt) {
+    if (lengthUt === null || lengthUt === undefined || lengthUt < 0 || Number.isNaN(lengthUt)) return '0s';
+
+    const totalSeconds = Math.floor(lengthUt);
+    const numberOfHours = Math.floor(totalSeconds / (60 * 60));
+    const numberOfMinutes = Math.floor((totalSeconds % (60 * 60)) / 60);
+    const numberOfSeconds = totalSeconds % 60;
+
+    const parts = [];
+    if (numberOfHours > 0) parts.push(`${numberOfHours}h`);
+    if (numberOfMinutes > 0 || numberOfHours > 0) parts.push(`${numberOfMinutes}m`);
+    parts.push(`${numberOfSeconds}s`);
+
+    return parts.join('');
+}
+
+function loadExcludedIntervals(storageKey) {
+    try {
+        const raw = localStorage.getItem(storageKey);
+        if (!raw) return [];
+
+        const parsed = JSON.parse(raw);
+        if (!Array.isArray(parsed)) return [];
+
+        return parsed
+            .filter((interval) => Number.isFinite(interval?.startUt) && Number.isFinite(interval?.endUt) && interval.endUt > interval.startUt)
+            .map((interval) => ({
+                id: interval.id ?? `${interval.startUt}-${interval.endUt}`,
+                startUt: interval.startUt,
+                endUt: interval.endUt,
+            }))
+            .sort((a, b) => a.startUt - b.startUt);
+    } catch (error) {
+        console.error('Failed to load excluded intervals:', error);
+        return [];
+    }
+}
+
+function areIntervalsEffectivelySame(left, right) {
+    return Math.abs(left.startUt - right.startUt) <= EXCLUDED_INTERVAL_DUPLICATE_TOLERANCE
+        && Math.abs(left.endUt - right.endUt) <= EXCLUDED_INTERVAL_DUPLICATE_TOLERANCE;
+}
+
 export default function AnalyticsMenu({ start_ut, end_ut }) {
     const { t, i18n } = useTranslation();
     const { burstCount, largestDamageInstanceCount, skillUsageTopN, topEnemyCount } = useContext(AppContext)
@@ -85,6 +143,11 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     const [bands, setBands] = useState([])
     const [graphBands, setGraphBands] = useState([])
     const [scatterPlotSeries, setScatterPlotSeries] = useState([]);
+    const [attackTimestamps, setAttackTimestamps] = useState([]);
+    const [excludedIntervals, setExcludedIntervals] = useState([]);
+    const [hoveredExcludedIntervalId, setHoveredExcludedIntervalId] = useState(null);
+    const [pendingExcludedInterval, setPendingExcludedInterval] = useState(null);
+    const [feedbackMessage, setFeedbackMessage] = useState('');
 
     const [skillDamagesRaw, setSkillDamagesRaw] = useState([]);
     const [selectedSkillPlayerId, setSelectedSkillPlayerId] = useState('all');
@@ -92,6 +155,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     const [enemyFilterMode, setEnemyFilterMode] = useState('all');
 
     const activeTopEnemyCount = enemyFilterMode === 'top1' ? 1 : enemyFilterMode === 'topx' ? topEnemyCount : 0;
+    const excludedIntervalStorageKey = useMemo(() => `${EXCLUDED_INTERVAL_STORAGE_KEY}:${start_ut}:${end_ut}`, [start_ut, end_ut]);
 
     const buildAnalyticsUrl = (path, params = {}, includeEnemyFilter = true) => {
         const searchParams = new URLSearchParams({
@@ -112,6 +176,20 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
         if (enemyFilterMode === 'topx') return t('analytics.totalDamageTopX', { count: topEnemyCount });
         return t('common.totalDamage');
     }, [enemyFilterMode, t, topEnemyCount]);
+
+    useEffect(() => {
+        setExcludedIntervals(loadExcludedIntervals(excludedIntervalStorageKey));
+        setHoveredExcludedIntervalId(null);
+        setPendingExcludedInterval(null);
+    }, [excludedIntervalStorageKey]);
+
+    useEffect(() => {
+        try {
+            localStorage.setItem(excludedIntervalStorageKey, JSON.stringify(excludedIntervals));
+        } catch (error) {
+            console.error('Failed to persist excluded intervals:', error);
+        }
+    }, [excludedIntervals, excludedIntervalStorageKey]);
 
     useEffect(() => {
         async function getDamageBands() {
@@ -229,6 +307,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
 
                 series.sort((a, b) => dmgMap.get(b.label) - dmgMap.get(a.label))
                 setScatterPlotSeries(series)
+                setAttackTimestamps((data ?? [])
+                    .map((damageSimple) => damageSimple.unix_timestamp)
+                    .filter((timestamp) => Number.isFinite(timestamp))
+                    .sort((a, b) => a - b));
             })
 
         fetch(buildAnalyticsUrl('GetSkillDamagesBetweenUt'))
@@ -330,6 +412,10 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
         ...row,
     })), [damageBySkillRows]);
 
+    const totalExcludedDuration = useMemo(() => excludedIntervals.reduce((sum, interval) => sum + (interval.endUt - interval.startUt), 0), [excludedIntervals]);
+
+    const effectiveAnalyzedDuration = useMemo(() => Math.max((end_ut - start_ut) - totalExcludedDuration, 0), [end_ut, start_ut, totalExcludedDuration]);
+
     const damageBySkillColumns = useMemo(() => ([
         { field: 'skillName', headerName: t('analytics.skill'), flex: 1, minWidth: 200, sortable: false },
         {
@@ -351,6 +437,60 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
             valueFormatter: (value) => `${Number(value ?? 0).toFixed(1)}%`,
         },
     ]), [t]);
+
+    const handleScatterPlotGapClick = (clickedTime) => {
+        if (!Number.isFinite(clickedTime) || attackTimestamps.length < 2) return;
+
+        let previousAttack = null;
+        let nextAttack = null;
+
+        for (let index = 0; index < attackTimestamps.length; index += 1) {
+            const timestamp = attackTimestamps[index];
+
+            if (timestamp < clickedTime) {
+                previousAttack = timestamp;
+                continue;
+            }
+
+            if (timestamp > clickedTime) {
+                nextAttack = timestamp;
+                break;
+            }
+        }
+
+        if (!Number.isFinite(previousAttack) || !Number.isFinite(nextAttack)) return;
+
+        const candidateDuration = nextAttack - previousAttack;
+        if (candidateDuration <= 5 || candidateDuration < EXCLUDED_INTERVAL_MIN_DURATION) return;
+
+        setPendingExcludedInterval({
+            id: `${previousAttack}-${nextAttack}`,
+            startUt: previousAttack,
+            endUt: nextAttack,
+        });
+    };
+
+    const handleConfirmExcludedInterval = () => {
+        if (!pendingExcludedInterval) return;
+
+        const isDuplicate = excludedIntervals.some((interval) => areIntervalsEffectivelySame(interval, pendingExcludedInterval));
+        if (isDuplicate) {
+            setFeedbackMessage(t('analytics.excludedIntervalDuplicate'));
+            setPendingExcludedInterval(null);
+            return;
+        }
+
+        setExcludedIntervals((previousIntervals) => ([
+            ...previousIntervals,
+            pendingExcludedInterval,
+        ].sort((left, right) => left.startUt - right.startUt)));
+        setPendingExcludedInterval(null);
+    };
+
+    const handleDeleteExcludedInterval = (intervalId) => {
+        setExcludedIntervals((previousIntervals) => previousIntervals.filter((interval) => interval.id !== intervalId));
+        setHoveredExcludedIntervalId((currentHoveredId) => (currentHoveredId === intervalId ? null : currentHoveredId));
+    };
 
     return (
         <Box>
@@ -392,7 +532,11 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     }
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} >
-                    <TimeCard length_ut={end_ut - start_ut} />
+                    <TimeCard
+                        length_ut={effectiveAnalyzedDuration}
+                        original_length_ut={end_ut - start_ut}
+                        excluded_length_ut={totalExcludedDuration}
+                    />
                 </Grid>
                 <Grid size={{ xs: 12, sm: 6, lg: 3 }} >
                     {combinedDamageOverTimeData ?
@@ -427,12 +571,69 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                         <Skeleton variant="rounded" />
                     }
                 </Grid>
-                <Grid size={{ xs: 12, sm: 12, lg: 12, xl: 12 }} >
+                <Grid size={{ xs: 12, sm: 12, lg: 9, xl: 9 }} >
                     {(damageOverTimeData && graphLargestDamageInstance && graphBands.length) ?
-                        <DamageScatterPlot series={scatterPlotSeries} />
+                        <DamageScatterPlot
+                            series={scatterPlotSeries}
+                            startUt={start_ut}
+                            endUt={end_ut}
+                            excludedIntervals={excludedIntervals}
+                            hoveredIntervalId={hoveredExcludedIntervalId}
+                            onGapClick={handleScatterPlotGapClick}
+                        />
                         :
                         <Skeleton variant="rounded" />
                     }
+                </Grid>
+                <Grid size={{ xs: 12, sm: 12, lg: 3, xl: 3 }} >
+                    <Paper square={false} sx={{ p: 2, height: '100%' }}>
+                        <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.excludedIntervals')}</Typography>
+                        <Stack spacing={1} sx={{ mb: 2 }}>
+                            <Box>
+                                <Typography variant="subtitle2">{t('analytics.analyzedDuration')}</Typography>
+                                <Typography variant="body1">{formatDuration(effectiveAnalyzedDuration)}</Typography>
+                            </Box>
+                            <Box>
+                                <Typography variant="subtitle2">{t('analytics.elapsedDuration')}</Typography>
+                                <Typography variant="body1">{formatDuration(end_ut - start_ut)}</Typography>
+                            </Box>
+                            <Box>
+                                <Typography variant="subtitle2">{t('analytics.excludedDuration')}</Typography>
+                                <Typography variant="body1">{formatDuration(totalExcludedDuration)}</Typography>
+                            </Box>
+                        </Stack>
+                        {excludedIntervals.length > 0 ? (
+                            <List disablePadding>
+                                {excludedIntervals.map((interval) => (
+                                    <ListItem
+                                        key={interval.id}
+                                        disablePadding
+                                        secondaryAction={
+                                            <IconButton edge="end" aria-label={t('analytics.removeExcludedInterval')} onClick={() => handleDeleteExcludedInterval(interval.id)}>
+                                                <DeleteOutlineIcon />
+                                            </IconButton>
+                                        }
+                                        sx={{
+                                            px: 1,
+                                            py: 0.5,
+                                            borderRadius: 1,
+                                            transition: 'background-color 120ms ease',
+                                            backgroundColor: interval.id === hoveredExcludedIntervalId ? 'action.hover' : 'transparent',
+                                        }}
+                                        onMouseEnter={() => setHoveredExcludedIntervalId(interval.id)}
+                                        onMouseLeave={() => setHoveredExcludedIntervalId((currentHoveredId) => (currentHoveredId === interval.id ? null : currentHoveredId))}
+                                    >
+                                        <ListItemText
+                                            primary={`${formatTimeStamp(interval.startUt)} ～ ${formatTimeStamp(interval.endUt)}`}
+                                            secondary={formatDuration(interval.endUt - interval.startUt)}
+                                        />
+                                    </ListItem>
+                                ))}
+                            </List>
+                        ) : (
+                            <Typography variant="body2" color="text.secondary">{t('analytics.excludedIntervalsEmpty')}</Typography>
+                        )}
+                    </Paper>
                 </Grid>
                 <Grid size={{ xs: 12, md: 12 }}>
                     <Paper sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
@@ -510,6 +711,29 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     }
                 </Grid>
             </Grid>
+            <Dialog open={Boolean(pendingExcludedInterval)} onClose={() => setPendingExcludedInterval(null)}>
+                <DialogTitle>{t('analytics.addExcludedInterval')}</DialogTitle>
+                <DialogContent>
+                    <Typography>
+                        {pendingExcludedInterval
+                            ? t('analytics.confirmExcludedInterval', {
+                                start: formatTimeStamp(pendingExcludedInterval.startUt),
+                                end: formatTimeStamp(pendingExcludedInterval.endUt),
+                            })
+                            : ''}
+                    </Typography>
+                </DialogContent>
+                <DialogActions>
+                    <Button onClick={() => setPendingExcludedInterval(null)}>{t('common.cancel')}</Button>
+                    <Button variant="contained" onClick={handleConfirmExcludedInterval}>{t('analytics.registerExcludedInterval')}</Button>
+                </DialogActions>
+            </Dialog>
+            <Snackbar
+                open={Boolean(feedbackMessage)}
+                autoHideDuration={3000}
+                onClose={() => setFeedbackMessage('')}
+                message={feedbackMessage}
+            />
         </Box >
     );
 }

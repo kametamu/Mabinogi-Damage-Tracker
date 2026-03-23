@@ -8,7 +8,8 @@
     "totalDamage": "Total Damage",
     "numberOfPlayers": "Number of Players",
     "damageOverTime": "Damage Over Time",
-    "largestHit": "Largest Hit"
+    "largestHit": "Largest Hit",
+    "cancel": "Cancel"
   },
   "sideMenu": {
     "home": "Home",
@@ -73,7 +74,17 @@
     "enemyFilterTop1": "TOP1",
     "enemyFilterTopX": "Top {{count}} Targets",
     "totalDamageTop1": "Total Damage (TOP1)",
-    "totalDamageTopX": "Total Damage (Top {{count}} Targets)"
+    "totalDamageTopX": "Total Damage (Top {{count}} Targets)",
+    "excludedIntervals": "Excluded Intervals",
+    "excludedIntervalsEmpty": "No excluded intervals yet. Click an empty gap in the damage scatter plot.",
+    "addExcludedInterval": "Add Excluded Interval",
+    "confirmExcludedInterval": "Register {{start}} ～ {{end}} as an excluded interval?",
+    "registerExcludedInterval": "Register",
+    "excludedIntervalDuplicate": "This interval has already been registered.",
+    "removeExcludedInterval": "Remove excluded interval",
+    "analyzedDuration": "Analyzed Duration",
+    "elapsedDuration": "Elapsed Duration",
+    "excludedDuration": "Excluded Duration"
   },
   "players": {
     "title": "Players",

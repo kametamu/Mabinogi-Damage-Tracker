@@ -8,7 +8,8 @@
     "totalDamage": "合計ダメージ",
     "numberOfPlayers": "プレイヤー数",
     "damageOverTime": "ダメージ推移",
-    "largestHit": "最大ダメージ"
+    "largestHit": "最大ダメージ",
+    "cancel": "キャンセル"
   },
   "sideMenu": {
     "home": "ホーム",
@@ -73,7 +74,17 @@
     "enemyFilterTop1": "TOP1",
     "enemyFilterTopX": "Top {{count}} 対象",
     "totalDamageTop1": "合計ダメージ (TOP1)",
-    "totalDamageTopX": "合計ダメージ (Top {{count}} 対象)"
+    "totalDamageTopX": "合計ダメージ (Top {{count}} 対象)",
+    "excludedIntervals": "除外区間",
+    "excludedIntervalsEmpty": "除外区間はまだ登録されていません。ダメージ分布の空白をクリックしてください。",
+    "addExcludedInterval": "除外区間を追加",
+    "confirmExcludedInterval": "{{start}} ～ {{end}} を除外区間に登録しますか？",
+    "registerExcludedInterval": "登録",
+    "excludedIntervalDuplicate": "すでに登録されている区間です",
+    "removeExcludedInterval": "除外区間を削除",
+    "analyzedDuration": "分析対象時間",
+    "elapsedDuration": "経過時間",
+    "excludedDuration": "除外時間"
   },
   "players": {
     "title": "プレイヤー",
