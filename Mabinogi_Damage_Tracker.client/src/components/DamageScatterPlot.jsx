@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { memo, useCallback, useMemo } from 'react';
 import { ScatterChart } from '@mui/x-charts/ScatterChart';
 import { ChartsTooltipContainer, useItemTooltip } from '@mui/x-charts/ChartsTooltip';
 import { styled } from '@mui/material/styles';
@@ -135,15 +135,57 @@ function getIntervalOverlayStyle(interval, hoveredIntervalId, startUt, endUt) {
     };
 }
 
+
+const MemoizedScatterChart = memo(function MemoizedScatterChart({ series }) {
+    return (
+        <ScatterChart
+            height={chartHeight}
+            series={series}
+            grid={{ horizontal: true, vertical: true }}
+            voronoiMaxRadius={20}
+            colors={customColors}
+            slots={{ tooltip: CustomTooltip }}
+            {...chartSetting}
+        />
+    );
+});
+
+const IntervalOverlay = memo(function IntervalOverlay({ excludedIntervals, hoveredIntervalId, startUt, endUt }) {
+    const intervalOverlays = useMemo(() => excludedIntervals
+        .map((interval) => ({
+            interval,
+            style: getIntervalOverlayStyle(interval, hoveredIntervalId, startUt, endUt),
+        }))
+        .filter((entry) => entry.style != null), [excludedIntervals, hoveredIntervalId, startUt, endUt]);
+
+    return (
+        <Box
+            sx={{
+                position: 'absolute',
+                left: `${chartMargin.left}px`,
+                right: `${chartMargin.right}px`,
+                top: `${chartMargin.top}px`,
+                bottom: `${chartMargin.bottom}px`,
+                pointerEvents: 'none',
+            }}
+        >
+            {intervalOverlays.map(({ interval, style }) => (
+                <Box
+                    key={interval.id}
+                    sx={{
+                        position: 'absolute',
+                        ...style,
+                    }}
+                />
+            ))}
+        </Box>
+    );
+});
+
 export default function DamageScatterPlot({ series, startUt, endUt, excludedIntervals = [], hoveredIntervalId = null, onGapClick }) {
     const { t } = useTranslation();
 
-    const intervalOverlays = useMemo(() => excludedIntervals.map((interval) => ({
-        interval,
-        style: getIntervalOverlayStyle(interval, hoveredIntervalId, startUt, endUt),
-    })).filter((entry) => entry.style != null), [excludedIntervals, hoveredIntervalId, startUt, endUt]);
-
-    const handlePlotClick = (event) => {
+    const handlePlotClick = useCallback((event) => {
         if (typeof onGapClick !== 'function' || !Number.isFinite(startUt) || !Number.isFinite(endUt) || endUt <= startUt) {
             return;
         }
@@ -163,42 +205,23 @@ export default function DamageScatterPlot({ series, startUt, endUt, excludedInte
         const ratio = (relativeX - plotLeft) / plotWidth;
         const clickedTime = startUt + ((endUt - startUt) * ratio);
         onGapClick(clickedTime);
-    };
+    }, [onGapClick, startUt, endUt]);
 
     return (
         <Paper square={false} sx={{ padding: '6px', height: '100%' }}>
             <Typography variant="h4" sx={{ marginBottom: '10px' }}>{t('analytics.damageScatterPlot')}</Typography>
             <Box sx={{ position: 'relative', height: chartHeight, cursor: 'crosshair' }} onClickCapture={handlePlotClick}>
-                <ScatterChart
-                    height={chartHeight}
-                    series={series}
-                    grid={{ horizontal: true, vertical: true }}
-                    voronoiMaxRadius={20}
-                    colors={customColors}
-                    slots={{ tooltip: CustomTooltip }}
-                    {...chartSetting}
+                <MemoizedScatterChart series={series} />
+                <IntervalOverlay
+                    excludedIntervals={excludedIntervals}
+                    hoveredIntervalId={hoveredIntervalId}
+                    startUt={startUt}
+                    endUt={endUt}
                 />
-                <Box
-                    sx={{
-                        position: 'absolute',
-                        left: `${chartMargin.left}px`,
-                        right: `${chartMargin.right}px`,
-                        top: `${chartMargin.top}px`,
-                        bottom: `${chartMargin.bottom}px`,
-                        pointerEvents: 'none',
-                    }}
-                >
-                    {intervalOverlays.map(({ interval, style }) => (
-                        <Box
-                            key={interval.id}
-                            sx={{
-                                position: 'absolute',
-                                ...style,
-                            }}
-                        />
-                    ))}
-                </Box>
             </Box>
         </Paper>
     );
 }
+
+MemoizedScatterChart.displayName = 'MemoizedScatterChart';
+IntervalOverlay.displayName = 'IntervalOverlay';
