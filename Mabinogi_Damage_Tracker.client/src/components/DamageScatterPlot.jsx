@@ -168,7 +168,7 @@ export default function DamageScatterPlot({ series, startUt, endUt, excludedInte
     return (
         <Paper square={false} sx={{ padding: '6px', height: '100%' }}>
             <Typography variant="h4" sx={{ marginBottom: '10px' }}>{t('analytics.damageScatterPlot')}</Typography>
-            <Box sx={{ position: 'relative', height: chartHeight }}>
+            <Box sx={{ position: 'relative', height: chartHeight, cursor: 'crosshair' }} onClickCapture={handlePlotClick}>
                 <ScatterChart
                     height={chartHeight}
                     series={series}
@@ -177,15 +177,6 @@ export default function DamageScatterPlot({ series, startUt, endUt, excludedInte
                     colors={customColors}
                     slots={{ tooltip: CustomTooltip }}
                     {...chartSetting}
-                />
-                <Box
-                    onClick={handlePlotClick}
-                    sx={{
-                        position: 'absolute',
-                        inset: 0,
-                        cursor: 'crosshair',
-                        backgroundColor: 'transparent',
-                    }}
                 />
                 <Box
                     sx={{
