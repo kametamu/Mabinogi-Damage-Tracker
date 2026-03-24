@@ -31,6 +31,7 @@ import PlayerDamagePieChart from './PlayerDamagePieChart';
 import SkillUsagePieChart from './SkillUsagePieChart';
 import DecoratedDamageOverTimeLineGraph from './DecoratedDamageOverTimeLineGraph';
 import DamageScatterPlot from './DamageScatterPlot';
+import ExcludedIntervalSelectionPanel from './ExcludedIntervalSelectionPanel';
 import LargestHitCard from './LargestHitCard';
 import BurstCard from './BurstCard';
 import HealingCard from './HealingCard';
@@ -438,7 +439,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
         },
     ]), [t]);
 
-    const handleScatterPlotGapClick = (clickedTime) => {
+    const handleExcludedIntervalSelection = (clickedTime) => {
         if (!Number.isFinite(clickedTime) || attackTimestamps.length < 2) return;
 
         let previousAttack = null;
@@ -573,67 +574,71 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                 </Grid>
                 <Grid size={{ xs: 12, sm: 12, lg: 9, xl: 9 }} >
                     {(damageOverTimeData && graphLargestDamageInstance && graphBands.length) ?
-                        <DamageScatterPlot
-                            series={scatterPlotSeries}
-                            startUt={start_ut}
-                            endUt={end_ut}
-                            excludedIntervals={excludedIntervals}
-                            hoveredIntervalId={hoveredExcludedIntervalId}
-                            onGapClick={handleScatterPlotGapClick}
-                        />
+                        <DamageScatterPlot series={scatterPlotSeries} />
                         :
                         <Skeleton variant="rounded" />
                     }
                 </Grid>
                 <Grid size={{ xs: 12, sm: 12, lg: 3, xl: 3 }} >
-                    <Paper square={false} sx={{ p: 2, height: '100%' }}>
-                        <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.excludedIntervals')}</Typography>
-                        <Stack spacing={1} sx={{ mb: 2 }}>
-                            <Box>
-                                <Typography variant="subtitle2">{t('analytics.analyzedDuration')}</Typography>
-                                <Typography variant="body1">{formatDuration(effectiveAnalyzedDuration)}</Typography>
-                            </Box>
-                            <Box>
-                                <Typography variant="subtitle2">{t('analytics.elapsedDuration')}</Typography>
-                                <Typography variant="body1">{formatDuration(end_ut - start_ut)}</Typography>
-                            </Box>
-                            <Box>
-                                <Typography variant="subtitle2">{t('analytics.excludedDuration')}</Typography>
-                                <Typography variant="body1">{formatDuration(totalExcludedDuration)}</Typography>
-                            </Box>
-                        </Stack>
-                        {excludedIntervals.length > 0 ? (
-                            <List disablePadding>
-                                {excludedIntervals.map((interval) => (
-                                    <ListItem
-                                        key={interval.id}
-                                        disablePadding
-                                        secondaryAction={
-                                            <IconButton edge="end" aria-label={t('analytics.removeExcludedInterval')} onClick={() => handleDeleteExcludedInterval(interval.id)}>
-                                                <DeleteOutlineIcon />
-                                            </IconButton>
-                                        }
-                                        sx={{
-                                            px: 1,
-                                            py: 0.5,
-                                            borderRadius: 1,
-                                            transition: 'background-color 120ms ease',
-                                            backgroundColor: interval.id === hoveredExcludedIntervalId ? 'action.hover' : 'transparent',
-                                        }}
-                                        onMouseEnter={() => setHoveredExcludedIntervalId(interval.id)}
-                                        onMouseLeave={() => setHoveredExcludedIntervalId((currentHoveredId) => (currentHoveredId === interval.id ? null : currentHoveredId))}
-                                    >
-                                        <ListItemText
-                                            primary={`${formatTimeStamp(interval.startUt)} ～ ${formatTimeStamp(interval.endUt)}`}
-                                            secondary={formatDuration(interval.endUt - interval.startUt)}
-                                        />
-                                    </ListItem>
-                                ))}
-                            </List>
-                        ) : (
-                            <Typography variant="body2" color="text.secondary">{t('analytics.excludedIntervalsEmpty')}</Typography>
-                        )}
-                    </Paper>
+                    <Stack spacing={2} sx={{ height: '100%' }}>
+                        <ExcludedIntervalSelectionPanel
+                            startUt={start_ut}
+                            endUt={end_ut}
+                            attackTimestamps={attackTimestamps}
+                            excludedIntervals={excludedIntervals}
+                            hoveredIntervalId={hoveredExcludedIntervalId}
+                            onSelectTime={handleExcludedIntervalSelection}
+                            title={t('analytics.excludedIntervals')}
+                        />
+                        <Paper square={false} sx={{ p: 2, flexGrow: 1 }}>
+                            <Typography variant="h4" sx={{ mb: 1 }}>{t('analytics.excludedIntervals')}</Typography>
+                            <Stack spacing={1} sx={{ mb: 2 }}>
+                                <Box>
+                                    <Typography variant="subtitle2">{t('analytics.analyzedDuration')}</Typography>
+                                    <Typography variant="body1">{formatDuration(effectiveAnalyzedDuration)}</Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="subtitle2">{t('analytics.elapsedDuration')}</Typography>
+                                    <Typography variant="body1">{formatDuration(end_ut - start_ut)}</Typography>
+                                </Box>
+                                <Box>
+                                    <Typography variant="subtitle2">{t('analytics.excludedDuration')}</Typography>
+                                    <Typography variant="body1">{formatDuration(totalExcludedDuration)}</Typography>
+                                </Box>
+                            </Stack>
+                            {excludedIntervals.length > 0 ? (
+                                <List disablePadding>
+                                    {excludedIntervals.map((interval) => (
+                                        <ListItem
+                                            key={interval.id}
+                                            disablePadding
+                                            secondaryAction={
+                                                <IconButton edge="end" aria-label={t('analytics.removeExcludedInterval')} onClick={() => handleDeleteExcludedInterval(interval.id)}>
+                                                    <DeleteOutlineIcon />
+                                                </IconButton>
+                                            }
+                                            sx={{
+                                                px: 1,
+                                                py: 0.5,
+                                                borderRadius: 1,
+                                                transition: 'background-color 120ms ease',
+                                                backgroundColor: interval.id === hoveredExcludedIntervalId ? 'action.hover' : 'transparent',
+                                            }}
+                                            onMouseEnter={() => setHoveredExcludedIntervalId(interval.id)}
+                                            onMouseLeave={() => setHoveredExcludedIntervalId((currentHoveredId) => (currentHoveredId === interval.id ? null : currentHoveredId))}
+                                        >
+                                            <ListItemText
+                                                primary={`${formatTimeStamp(interval.startUt)} ～ ${formatTimeStamp(interval.endUt)}`}
+                                                secondary={formatDuration(interval.endUt - interval.startUt)}
+                                            />
+                                        </ListItem>
+                                    ))}
+                                </List>
+                            ) : (
+                                <Typography variant="body2" color="text.secondary">{t('analytics.excludedIntervalsEmpty')}</Typography>
+                            )}
+                        </Paper>
+                    </Stack>
                 </Grid>
                 <Grid size={{ xs: 12, md: 12 }}>
                     <Paper sx={{ p: 2, display: 'flex', justifyContent: 'flex-end' }}>
