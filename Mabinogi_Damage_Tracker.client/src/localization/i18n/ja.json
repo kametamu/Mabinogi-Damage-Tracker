@@ -52,7 +52,7 @@
     "eventLogs": "戦闘ログ",
     "damageMeter": "DPSメーター",
     "maxDps": "最大DPS",
-    "dps": "現在DPS",
+    "dps": "DPS",
     "averageDps": "平均DPS"
   },
   "analytics": {
@@ -91,10 +91,17 @@
     "partyDps": "パーティーDPS",
     "fightDuration": "戦闘時間",
     "participants": "参加人数",
-    "highestHit": "最高単発",
+    "highestHit": "最高ダメージ",
     "topBurst": "最大バースト",
     "topBurst15s": "最大バースト (15秒)",
-    "contribution": "貢献度 %"
+    "contribution": "貢献度 %",
+    "rank": "順位",
+    "copyAsImage": "画像をコピー",
+    "saveAsPng": "PNGで保存",
+    "copiedBattleSummaryImage": "戦闘サマリー画像をクリップボードにコピーしました。",
+    "savedBattleSummaryImage": "戦闘サマリー画像をダウンロードしました。",
+    "clipboardImageUnsupported": "このブラウザでは画像コピーに対応していません。",
+    "exportFailed": "戦闘サマリー画像の出力に失敗しました。"
   },
   "players": {
     "title": "プレイヤー",

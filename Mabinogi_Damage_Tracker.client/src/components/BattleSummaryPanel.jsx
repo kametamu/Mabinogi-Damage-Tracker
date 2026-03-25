@@ -10,27 +10,17 @@ import TableCell from '@mui/material/TableCell';
 import TableContainer from '@mui/material/TableContainer';
 import TableHead from '@mui/material/TableHead';
 import TableRow from '@mui/material/TableRow';
+import Button from '@mui/material/Button';
+import Alert from '@mui/material/Alert';
+import Snackbar from '@mui/material/Snackbar';
+import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
+import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import { useTranslation } from 'react-i18next';
 
-function formatLargeNumber(num) {
-    if (num === null || num === undefined || Number.isNaN(num)) return '0';
-
-    const absNum = Math.abs(num);
-    let formatted;
-
-    if (absNum >= 1e12) {
-        formatted = (num / 1e12).toFixed(1) + 'T';
-    } else if (absNum >= 1e9) {
-        formatted = (num / 1e9).toFixed(1) + 'B';
-    } else if (absNum >= 1e6) {
-        formatted = (num / 1e6).toFixed(1) + 'M';
-    } else if (absNum >= 1e3) {
-        formatted = (num / 1e3).toFixed(1) + 'K';
-    } else {
-        formatted = num.toFixed(0);
-    }
-
-    return formatted.replace(/\.0(?=[A-Z])/, '');
+function formatGroupedNumber(num) {
+    const numericValue = Number(num ?? 0);
+    if (!Number.isFinite(numericValue)) return '0';
+    return new Intl.NumberFormat(undefined, { maximumFractionDigits: 0 }).format(Math.round(numericValue));
 }
 
 function formatDuration(lengthUt) {
@@ -49,6 +39,66 @@ function formatDuration(lengthUt) {
     return parts.join('');
 }
 
+function getRankDisplay(rank) {
+    if (rank === 1) return '🥇';
+    if (rank === 2) return '🥈';
+    if (rank === 3) return '🥉';
+    return String(rank);
+}
+
+async function exportBattleSummaryBlob(node) {
+    const { width, height } = node.getBoundingClientRect();
+    const clone = node.cloneNode(true);
+
+    clone.querySelectorAll('[data-export-exclude="true"]').forEach((element) => element.remove());
+    clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
+    clone.style.margin = '0';
+
+    const serialized = new XMLSerializer().serializeToString(clone);
+    const svg = `
+        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
+            <foreignObject x="0" y="0" width="100%" height="100%">
+                ${serialized}
+            </foreignObject>
+        </svg>
+    `;
+
+    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
+    const svgUrl = URL.createObjectURL(svgBlob);
+
+    try {
+        const image = await new Promise((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => resolve(img);
+            img.onerror = reject;
+            img.src = svgUrl;
+        });
+
+        const canvas = document.createElement('canvas');
+        const pixelRatio = window.devicePixelRatio > 1 ? 2 : 1;
+        canvas.width = Math.ceil(width * pixelRatio);
+        canvas.height = Math.ceil(height * pixelRatio);
+
+        const context = canvas.getContext('2d');
+        context.scale(pixelRatio, pixelRatio);
+        context.fillStyle = '#ffffff';
+        context.fillRect(0, 0, width, height);
+        context.drawImage(image, 0, 0, width, height);
+
+        const pngBlob = await new Promise((resolve) => {
+            canvas.toBlob((blob) => resolve(blob), 'image/png');
+        });
+
+        if (!pngBlob) {
+            throw new Error('Failed to create PNG blob');
+        }
+
+        return pngBlob;
+    } finally {
+        URL.revokeObjectURL(svgUrl);
+    }
+}
+
 const BattleSummaryPanel = React.forwardRef(function BattleSummaryPanel({
     totalDamage,
     effectiveAnalyzedDuration,
@@ -58,67 +108,148 @@ const BattleSummaryPanel = React.forwardRef(function BattleSummaryPanel({
     players,
 }, ref) {
     const { t } = useTranslation();
+    const exportTargetRef = React.useRef(null);
+    const [feedbackMessage, setFeedbackMessage] = React.useState('');
+    const [feedbackSeverity, setFeedbackSeverity] = React.useState('success');
+    const [isFeedbackOpen, setIsFeedbackOpen] = React.useState(false);
     const partyDps = effectiveAnalyzedDuration > 0 ? totalDamage / effectiveAnalyzedDuration : 0;
 
+    const setExportRefs = React.useCallback((node) => {
+        exportTargetRef.current = node;
+        if (typeof ref === 'function') {
+            ref(node);
+        } else if (ref) {
+            ref.current = node;
+        }
+    }, [ref]);
+
+    const showFeedback = (message, severity = 'success') => {
+        setFeedbackMessage(message);
+        setFeedbackSeverity(severity);
+        setIsFeedbackOpen(true);
+    };
+
+    const handleSavePng = async () => {
+        if (!exportTargetRef.current) return;
+
+        try {
+            const pngBlob = await exportBattleSummaryBlob(exportTargetRef.current);
+            const downloadUrl = URL.createObjectURL(pngBlob);
+            const anchor = document.createElement('a');
+            anchor.href = downloadUrl;
+            anchor.download = 'battle-summary.png';
+            anchor.click();
+            URL.revokeObjectURL(downloadUrl);
+            showFeedback(t('analytics.savedBattleSummaryImage'));
+        } catch (error) {
+            console.error('Failed to save battle summary image:', error);
+            showFeedback(t('analytics.exportFailed'), 'error');
+        }
+    };
+
+    const handleCopyImage = async () => {
+        if (!exportTargetRef.current) return;
+
+        if (!navigator?.clipboard?.write || typeof ClipboardItem === 'undefined') {
+            showFeedback(t('analytics.clipboardImageUnsupported'), 'warning');
+            return;
+        }
+
+        try {
+            const pngBlob = await exportBattleSummaryBlob(exportTargetRef.current);
+            await navigator.clipboard.write([
+                new ClipboardItem({
+                    'image/png': pngBlob,
+                }),
+            ]);
+            showFeedback(t('analytics.copiedBattleSummaryImage'));
+        } catch (error) {
+            console.error('Failed to copy battle summary image:', error);
+            showFeedback(t('analytics.exportFailed'), 'error');
+        }
+    };
+
     return (
-        <Paper ref={ref} square={false} sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-            <Typography variant="h4">{t('analytics.battleSummary')}</Typography>
+        <>
+            <Paper ref={setExportRefs} square={false} sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={2}>
+                    <Typography variant="h4">{t('analytics.battleSummary')}</Typography>
+                    <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} data-export-exclude="true">
+                        <Button variant="outlined" startIcon={<ContentCopyRoundedIcon />} onClick={handleCopyImage}>
+                            {t('analytics.copyAsImage')}
+                        </Button>
+                        <Button variant="contained" startIcon={<DownloadRoundedIcon />} onClick={handleSavePng}>
+                            {t('analytics.saveAsPng')}
+                        </Button>
+                    </Stack>
+                </Stack>
 
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} divider={<Divider orientation="vertical" flexItem />}>
-                <Box sx={{ minWidth: 170 }}>
-                    <Typography variant="subtitle2" color="text.secondary">{t('analytics.partyDps')}</Typography>
-                    <Typography variant="h4">{formatLargeNumber(partyDps)}</Typography>
-                </Box>
-                <Box sx={{ minWidth: 170 }}>
-                    <Typography variant="subtitle2" color="text.secondary">{t('common.totalDamage')}</Typography>
-                    <Typography variant="h4">{formatLargeNumber(totalDamage)}</Typography>
-                </Box>
-                <Box sx={{ minWidth: 170 }}>
-                    <Typography variant="subtitle2" color="text.secondary">{t('analytics.fightDuration')}</Typography>
-                    <Typography variant="h4">{formatDuration(effectiveAnalyzedDuration)}</Typography>
-                </Box>
-                <Box sx={{ minWidth: 170 }}>
-                    <Typography variant="subtitle2" color="text.secondary">{t('analytics.participants')}</Typography>
-                    <Typography variant="h4">{participants}</Typography>
-                </Box>
-            </Stack>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={3} divider={<Divider orientation="vertical" flexItem />}>
+                    <Box sx={{ minWidth: 170 }}>
+                        <Typography variant="subtitle2" color="text.secondary">{t('analytics.partyDps')}</Typography>
+                        <Typography variant="h4">{formatGroupedNumber(partyDps)}</Typography>
+                    </Box>
+                    <Box sx={{ minWidth: 170 }}>
+                        <Typography variant="subtitle2" color="text.secondary">{t('common.totalDamage')}</Typography>
+                        <Typography variant="h4">{formatGroupedNumber(totalDamage)}</Typography>
+                    </Box>
+                    <Box sx={{ minWidth: 170 }}>
+                        <Typography variant="subtitle2" color="text.secondary">{t('analytics.fightDuration')}</Typography>
+                        <Typography variant="h4">{formatDuration(effectiveAnalyzedDuration)}</Typography>
+                    </Box>
+                    <Box sx={{ minWidth: 170 }}>
+                        <Typography variant="subtitle2" color="text.secondary">{t('analytics.participants')}</Typography>
+                        <Typography variant="h4">{participants}</Typography>
+                    </Box>
+                </Stack>
 
-            <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
-                <Box sx={{ flex: 1, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary">{t('analytics.highestHit')}</Typography>
-                    <Typography variant="h5">{formatLargeNumber(highestHit?.damage ?? 0)}</Typography>
-                    <Typography variant="body2">{highestHit?.player_name || '-'}</Typography>
-                </Box>
-                <Box sx={{ flex: 1, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary">{t('analytics.topBurst15s')}</Typography>
-                    <Typography variant="h5">{topBurst ? formatLargeNumber(topBurst.damage) : '-'}</Typography>
-                    <Typography variant="body2">{topBurst?.player_name || '-'}</Typography>
-                </Box>
-            </Stack>
+                <Stack direction={{ xs: 'column', md: 'row' }} spacing={2}>
+                    <Box sx={{ flex: 1, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary">{t('analytics.highestHit')}</Typography>
+                        <Typography variant="h5">{formatGroupedNumber(highestHit?.damage ?? 0)}</Typography>
+                        <Typography variant="body2">{highestHit?.player_name || '-'}</Typography>
+                    </Box>
+                    <Box sx={{ flex: 1, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
+                        <Typography variant="subtitle2" color="text.secondary">{t('analytics.topBurst15s')}</Typography>
+                        <Typography variant="h5">{topBurst ? formatGroupedNumber(topBurst.damage) : '-'}</Typography>
+                        <Typography variant="body2">{topBurst?.player_name || '-'}</Typography>
+                    </Box>
+                </Stack>
 
-            <TableContainer>
-                <Table size="small">
-                    <TableHead>
-                        <TableRow>
-                            <TableCell>{t('players.playerName')}</TableCell>
-                            <TableCell align="right">{t('common.totalDamage')}</TableCell>
-                            <TableCell align="right">{t('live.dps')}</TableCell>
-                            <TableCell align="right">{t('analytics.contribution')}</TableCell>
-                        </TableRow>
-                    </TableHead>
-                    <TableBody>
-                        {players.map((player) => (
-                            <TableRow key={player.playerName}>
-                                <TableCell>{player.playerName}</TableCell>
-                                <TableCell align="right">{formatLargeNumber(player.totalDamage)}</TableCell>
-                                <TableCell align="right">{formatLargeNumber(player.dps)}</TableCell>
-                                <TableCell align="right">{`${player.contribution.toFixed(1)}%`}</TableCell>
+                <TableContainer>
+                    <Table size="small">
+                        <TableHead>
+                            <TableRow>
+                                <TableCell width={80}>{t('analytics.rank')}</TableCell>
+                                <TableCell>{t('players.playerName')}</TableCell>
+                                <TableCell align="right">{t('common.totalDamage')}</TableCell>
+                                <TableCell align="right">{t('live.dps')}</TableCell>
+                                <TableCell align="right">{t('analytics.contribution')}</TableCell>
                             </TableRow>
-                        ))}
-                    </TableBody>
-                </Table>
-            </TableContainer>
-        </Paper>
+                        </TableHead>
+                        <TableBody>
+                            {players.map((player, index) => {
+                                const rank = index + 1;
+                                return (
+                                    <TableRow key={player.playerName}>
+                                        <TableCell>{getRankDisplay(rank)}</TableCell>
+                                        <TableCell>{player.playerName}</TableCell>
+                                        <TableCell align="right">{formatGroupedNumber(player.totalDamage)}</TableCell>
+                                        <TableCell align="right">{formatGroupedNumber(player.dps)}</TableCell>
+                                        <TableCell align="right">{`${player.contribution.toFixed(1)}%`}</TableCell>
+                                    </TableRow>
+                                );
+                            })}
+                        </TableBody>
+                    </Table>
+                </TableContainer>
+            </Paper>
+            <Snackbar open={isFeedbackOpen} autoHideDuration={3500} onClose={() => setIsFeedbackOpen(false)} data-export-exclude="true">
+                <Alert severity={feedbackSeverity} variant="filled" onClose={() => setIsFeedbackOpen(false)} sx={{ width: '100%' }}>
+                    {feedbackMessage}
+                </Alert>
+            </Snackbar>
+        </>
     );
 });
 
