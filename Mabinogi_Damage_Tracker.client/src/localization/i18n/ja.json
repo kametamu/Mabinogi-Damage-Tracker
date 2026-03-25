@@ -93,6 +93,7 @@
     "participants": "参加人数",
     "highestHit": "最高単発",
     "topBurst": "最大バースト",
+    "topBurst15s": "最大バースト (15秒)",
     "contribution": "貢献度 %"
   },
   "players": {

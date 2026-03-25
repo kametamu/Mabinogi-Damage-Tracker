@@ -90,8 +90,8 @@ const BattleSummaryPanel = React.forwardRef(function BattleSummaryPanel({
                     <Typography variant="body2">{highestHit?.player_name || '-'}</Typography>
                 </Box>
                 <Box sx={{ flex: 1, p: 2, bgcolor: 'action.hover', borderRadius: 2 }}>
-                    <Typography variant="subtitle2" color="text.secondary">{t('analytics.topBurst')}</Typography>
-                    <Typography variant="h5">{formatLargeNumber(topBurst?.damage ?? 0)}</Typography>
+                    <Typography variant="subtitle2" color="text.secondary">{t('analytics.topBurst15s')}</Typography>
+                    <Typography variant="h5">{topBurst ? formatLargeNumber(topBurst.damage) : '-'}</Typography>
                     <Typography variant="body2">{topBurst?.player_name || '-'}</Typography>
                 </Box>
             </Stack>

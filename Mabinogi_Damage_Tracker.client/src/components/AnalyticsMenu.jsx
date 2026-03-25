@@ -432,11 +432,8 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     ), [damageOverTimeData, effectiveAnalyzedDuration, totalDamage]);
 
     const topBurstSummary = useMemo(() => {
-        const preferred60sBand = bands.find((bandSet) => Array.isArray(bandSet) && bandSet[0]?.label === '60s');
-        if (preferred60sBand?.[0]) return preferred60sBand[0];
-
-        const fallbackBandSet = bands.find((bandSet) => Array.isArray(bandSet) && bandSet.length > 0);
-        return fallbackBandSet?.[0] ?? null;
+        const preferred15sBand = bands.find((bandSet) => Array.isArray(bandSet) && bandSet[0]?.label === '15s');
+        return preferred15sBand?.[0] ?? null;
     }, [bands]);
 
     const damageBySkillColumns = useMemo(() => ([
