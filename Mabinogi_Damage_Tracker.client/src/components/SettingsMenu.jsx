@@ -24,6 +24,7 @@ export default function SettingsMenu() {
     const { largestDamageInstanceCount, setLargestDamageInstantCount } = useContext(AppContext);
     const { skillUsageTopN, setSkillUsageTopN } = useContext(AppContext);
     const { topEnemyCount, setTopEnemyCount } = useContext(AppContext);
+    const { showBattleSummary, setShowBattleSummary } = useContext(AppContext);
     const [themeChecked, setThemeChecked] = useState(mode === 'dark' ? true : false);
     const [adapters, setAdapters] = useState([]);
     const [selectedAdapter, setSelectedAdapter] = useState('');
@@ -169,6 +170,16 @@ export default function SettingsMenu() {
                     onValueChange={(value) => {
                         setTopEnemyCount(value);
                     }} />
+            </Box>
+            <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>
+                <Box>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='h4'>{t('settings.showBattleSummary')}</Typography>
+                    <Typography sx={{ alignSelf: 'flex-start' }} variant='subtitle'>{t('settings.showBattleSummaryDescription')}</Typography>
+                </Box>
+                <Switch
+                    checked={showBattleSummary}
+                    onChange={(event) => setShowBattleSummary(event.target.checked)}
+                />
             </Box>
             <Divider />
             <Box sx={{ display: 'flex', flexDirection: 'row', justifyContent: 'space-between' }}>

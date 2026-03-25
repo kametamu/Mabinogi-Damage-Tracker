@@ -29,6 +29,9 @@ function Dashboard() {
     const [topEnemyCount, setTopEnemyCount] = useState(
         () => Number(localStorage.getItem('topEnemyCount')) || 3
     );
+    const [showBattleSummary, setShowBattleSummary] = useState(
+        () => localStorage.getItem('showBattleSummary') !== 'false'
+    );
 
     useEffect(() => {
         document.documentElement.setAttribute('data-mui-color-scheme', mode);
@@ -55,6 +58,10 @@ function Dashboard() {
         localStorage.setItem('topEnemyCount', topEnemyCount)
     }, [topEnemyCount])
 
+    useEffect(() => {
+        localStorage.setItem('showBattleSummary', showBattleSummary);
+    }, [showBattleSummary])
+
     return (
         <AppContext.Provider
             value={{
@@ -72,6 +79,8 @@ function Dashboard() {
                 setSkillUsageTopN,
                 topEnemyCount,
                 setTopEnemyCount,
+                showBattleSummary,
+                setShowBattleSummary,
             }}
         >
             <AppTheme mode={mode}>

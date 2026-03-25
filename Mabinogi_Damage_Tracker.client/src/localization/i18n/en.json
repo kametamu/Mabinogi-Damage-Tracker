@@ -41,7 +41,9 @@
     "skillUsageTopN": "Top N Skills",
     "skillUsageTopNDescription": "Sets the default number of skills shown in the skill hit share chart before grouping the rest as Other.",
     "topEnemyCount": "Top X target count",
-    "topEnemyCountDescription": "Sets the default X used by the Analytics Top X Targets filter. Targets are ranked by total damage dealt within the selected time range."
+    "topEnemyCountDescription": "Sets the default X used by the Analytics Top X Targets filter. Targets are ranked by total damage dealt within the selected time range.",
+    "showBattleSummary": "Show Battle Summary",
+    "showBattleSummaryDescription": "Display a shareable battle summary panel on the Analytics screen"
   },
   "live": {
     "title": "Live",
@@ -84,7 +86,14 @@
     "removeExcludedInterval": "Remove excluded interval",
     "analyzedDuration": "Analyzed Duration",
     "elapsedDuration": "Elapsed Duration",
-    "excludedDuration": "Excluded Duration"
+    "excludedDuration": "Excluded Duration",
+    "battleSummary": "Battle Summary",
+    "partyDps": "Party DPS",
+    "fightDuration": "Fight Duration",
+    "participants": "Participants",
+    "highestHit": "Highest Hit",
+    "topBurst": "Top Burst",
+    "contribution": "Contribution %"
   },
   "players": {
     "title": "Players",

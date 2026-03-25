@@ -35,6 +35,7 @@ import ExcludedIntervalSelectionPanel from './ExcludedIntervalSelectionPanel';
 import LargestHitCard from './LargestHitCard';
 import BurstCard from './BurstCard';
 import HealingCard from './HealingCard';
+import BattleSummaryPanel from './BattleSummaryPanel';
 import { getLocalizedSkillName } from '../localization/i18n/skills';
 
 function formatTimeStamp(ut) {
@@ -132,7 +133,7 @@ function areIntervalsEffectivelySame(left, right) {
 
 export default function AnalyticsMenu({ start_ut, end_ut }) {
     const { t, i18n } = useTranslation();
-    const { burstCount, largestDamageInstanceCount, skillUsageTopN, topEnemyCount } = useContext(AppContext)
+    const { burstCount, largestDamageInstanceCount, skillUsageTopN, topEnemyCount, showBattleSummary } = useContext(AppContext)
     const [damageOverTimeData, setDamageOverTimeData] = useState([])
     const [damagePieChartData, setDamagePieChartData] = useState([])
     const [combinedDamageOverTimeData, setCombinedDamageOverTimeData] = useState([])
@@ -416,6 +417,27 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     const totalExcludedDuration = useMemo(() => excludedIntervals.reduce((sum, interval) => sum + (interval.endUt - interval.startUt), 0), [excludedIntervals]);
 
     const effectiveAnalyzedDuration = useMemo(() => Math.max((end_ut - start_ut) - totalExcludedDuration, 0), [end_ut, start_ut, totalExcludedDuration]);
+    const battleSummaryRows = useMemo(() => (
+        (damageOverTimeData ?? [])
+            .map((series) => {
+                const playerTotalDamage = series.data?.at(-1) ?? 0;
+                return {
+                    playerName: series.label,
+                    totalDamage: playerTotalDamage,
+                    dps: effectiveAnalyzedDuration > 0 ? playerTotalDamage / effectiveAnalyzedDuration : 0,
+                    contribution: totalDamage > 0 ? (playerTotalDamage / totalDamage) * 100 : 0,
+                };
+            })
+            .sort((left, right) => right.totalDamage - left.totalDamage)
+    ), [damageOverTimeData, effectiveAnalyzedDuration, totalDamage]);
+
+    const topBurstSummary = useMemo(() => {
+        const preferred60sBand = bands.find((bandSet) => Array.isArray(bandSet) && bandSet[0]?.label === '60s');
+        if (preferred60sBand?.[0]) return preferred60sBand[0];
+
+        const fallbackBandSet = bands.find((bandSet) => Array.isArray(bandSet) && bandSet.length > 0);
+        return fallbackBandSet?.[0] ?? null;
+    }, [bands]);
 
     const damageBySkillColumns = useMemo(() => ([
         { field: 'skillName', headerName: t('analytics.skill'), flex: 1, minWidth: 200, sortable: false },
@@ -561,6 +583,18 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                     )
                     : Array.from(2).map((_, index) => <Skeleton key={index} variant="rounded" />)
                 }
+                {showBattleSummary ? (
+                    <Grid size={{ xs: 12 }}>
+                        <BattleSummaryPanel
+                            totalDamage={totalDamage ?? 0}
+                            effectiveAnalyzedDuration={effectiveAnalyzedDuration}
+                            participants={numberOfPlayer ?? 0}
+                            highestHit={largestDamageInstances[0] ?? null}
+                            topBurst={topBurstSummary}
+                            players={battleSummaryRows}
+                        />
+                    </Grid>
+                ) : null}
 
                 <Grid size={{ xs: 12, sm: 12, lg: 8, xl: 4 }} >
                     <PlayerDamagePieChart chartData={damagePieChartData} />

@@ -41,7 +41,9 @@
     "skillUsageTopN": "表示スキル数",
     "skillUsageTopNDescription": "スキルヒット割合チャートで表示するスキル数の初期値を設定し、残りは「その他」にまとめます。",
     "topEnemyCount": "Top X 対象数",
-    "topEnemyCountDescription": "分析画面の Top X Targets フィルターで使う初期 X を設定します。対象は選択中の時間範囲内の合計ダメージ量で順位付けされます。"
+    "topEnemyCountDescription": "分析画面の Top X Targets フィルターで使う初期 X を設定します。対象は選択中の時間範囲内の合計ダメージ量で順位付けされます。",
+    "showBattleSummary": "戦闘サマリーを表示",
+    "showBattleSummaryDescription": "Analytics画面に共有向けの戦闘サマリーパネルを表示します"
   },
   "live": {
     "title": "リアルタイム",
@@ -84,7 +86,14 @@
     "removeExcludedInterval": "除外区間を削除",
     "analyzedDuration": "分析対象時間",
     "elapsedDuration": "経過時間",
-    "excludedDuration": "除外時間"
+    "excludedDuration": "除外時間",
+    "battleSummary": "戦闘サマリー",
+    "partyDps": "パーティーDPS",
+    "fightDuration": "戦闘時間",
+    "participants": "参加人数",
+    "highestHit": "最高単発",
+    "topBurst": "最大バースト",
+    "contribution": "貢献度 %"
   },
   "players": {
     "title": "プレイヤー",
