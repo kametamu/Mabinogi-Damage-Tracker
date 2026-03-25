@@ -30,7 +30,7 @@ function Dashboard() {
         () => Number(localStorage.getItem('topEnemyCount')) || 3
     );
     const [showBattleSummary, setShowBattleSummary] = useState(
-        () => localStorage.getItem('showBattleSummary') !== 'false'
+        () => localStorage.getItem('showBattleSummary') === 'true'
     );
 
     useEffect(() => {
