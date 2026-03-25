@@ -13,7 +13,6 @@ import TableRow from '@mui/material/TableRow';
 import Button from '@mui/material/Button';
 import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
-import ContentCopyRoundedIcon from '@mui/icons-material/ContentCopyRounded';
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import { useTranslation } from 'react-i18next';
 
@@ -147,37 +146,12 @@ const BattleSummaryPanel = React.forwardRef(function BattleSummaryPanel({
         }
     };
 
-    const handleCopyImage = async () => {
-        if (!exportTargetRef.current) return;
-
-        if (!navigator?.clipboard?.write || typeof ClipboardItem === 'undefined') {
-            showFeedback(t('analytics.clipboardImageUnsupported'), 'warning');
-            return;
-        }
-
-        try {
-            const pngBlob = await exportBattleSummaryBlob(exportTargetRef.current);
-            await navigator.clipboard.write([
-                new ClipboardItem({
-                    'image/png': pngBlob,
-                }),
-            ]);
-            showFeedback(t('analytics.copiedBattleSummaryImage'));
-        } catch (error) {
-            console.error('Failed to copy battle summary image:', error);
-            showFeedback(t('analytics.exportFailed'), 'error');
-        }
-    };
-
     return (
         <>
             <Paper ref={setExportRefs} square={false} sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
                 <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={2}>
                     <Typography variant="h4">{t('analytics.battleSummary')}</Typography>
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} data-export-exclude="true">
-                        <Button variant="outlined" startIcon={<ContentCopyRoundedIcon />} onClick={handleCopyImage}>
-                            {t('analytics.copyAsImage')}
-                        </Button>
                         <Button variant="contained" startIcon={<DownloadRoundedIcon />} onClick={handleSavePng}>
                             {t('analytics.saveAsPng')}
                         </Button>

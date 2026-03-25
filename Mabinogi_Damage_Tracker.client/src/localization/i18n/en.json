@@ -96,11 +96,8 @@
     "topBurst15s": "Top Burst (15s)",
     "contribution": "Contribution %",
     "rank": "Rank",
-    "copyAsImage": "Copy as Image",
     "saveAsPng": "Save as PNG",
-    "copiedBattleSummaryImage": "Battle Summary image copied to clipboard.",
     "savedBattleSummaryImage": "Battle Summary image downloaded.",
-    "clipboardImageUnsupported": "Image copy is not supported in this browser.",
     "exportFailed": "Failed to export Battle Summary image."
   },
   "players": {

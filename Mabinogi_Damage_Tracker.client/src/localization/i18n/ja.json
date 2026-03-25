@@ -96,11 +96,8 @@
     "topBurst15s": "最大バースト (15秒)",
     "contribution": "貢献度 %",
     "rank": "順位",
-    "copyAsImage": "画像をコピー",
     "saveAsPng": "PNGで保存",
-    "copiedBattleSummaryImage": "戦闘サマリー画像をクリップボードにコピーしました。",
     "savedBattleSummaryImage": "戦闘サマリー画像をダウンロードしました。",
-    "clipboardImageUnsupported": "このブラウザでは画像コピーに対応していません。",
     "exportFailed": "戦闘サマリー画像の出力に失敗しました。"
   },
   "players": {
