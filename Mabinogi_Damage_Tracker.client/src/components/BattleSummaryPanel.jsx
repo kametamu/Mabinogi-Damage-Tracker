@@ -45,57 +45,119 @@ function getRankDisplay(rank) {
     return String(rank);
 }
 
-async function exportBattleSummaryBlob(node) {
-    const { width, height } = node.getBoundingClientRect();
-    const clone = node.cloneNode(true);
+async function exportBattleSummaryBlob({
+    t,
+    totalDamage,
+    effectiveAnalyzedDuration,
+    participants,
+    highestHit,
+    topBurst,
+    players,
+}) {
+    const rowHeight = 38;
+    const width = 1360;
+    const height = 320 + players.length * rowHeight;
+    const canvas = document.createElement('canvas');
+    canvas.width = width;
+    canvas.height = height;
 
-    clone.querySelectorAll('[data-export-exclude="true"]').forEach((element) => element.remove());
-    clone.setAttribute('xmlns', 'http://www.w3.org/1999/xhtml');
-    clone.style.margin = '0';
+    const context = canvas.getContext('2d');
+    if (!context) {
+        throw new Error('Failed to create canvas context');
+    }
+    context.fillStyle = '#ffffff';
+    context.fillRect(0, 0, width, height);
 
-    const serialized = new XMLSerializer().serializeToString(clone);
-    const svg = `
-        <svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}">
-            <foreignObject x="0" y="0" width="100%" height="100%">
-                ${serialized}
-            </foreignObject>
-        </svg>
-    `;
+    context.fillStyle = '#111827';
+    context.font = '700 34px sans-serif';
+    context.fillText(t('analytics.battleSummary'), 40, 54);
 
-    const svgBlob = new Blob([svg], { type: 'image/svg+xml;charset=utf-8' });
-    const svgUrl = URL.createObjectURL(svgBlob);
+    const partyDps = effectiveAnalyzedDuration > 0 ? totalDamage / effectiveAnalyzedDuration : 0;
+    const stats = [
+        [t('analytics.partyDps'), formatGroupedNumber(partyDps)],
+        [t('common.totalDamage'), formatGroupedNumber(totalDamage)],
+        [t('analytics.fightDuration'), formatDuration(effectiveAnalyzedDuration)],
+        [t('analytics.participants'), String(participants)],
+    ];
 
-    try {
-        const image = await new Promise((resolve, reject) => {
-            const img = new Image();
-            img.onload = () => resolve(img);
-            img.onerror = reject;
-            img.src = svgUrl;
-        });
+    const statCardY = 82;
+    const statCardWidth = 300;
+    stats.forEach(([label, value], index) => {
+        const x = 40 + (index * (statCardWidth + 20));
+        context.fillStyle = '#f5f7fb';
+        context.fillRect(x, statCardY, statCardWidth, 90);
+        context.fillStyle = '#6b7280';
+        context.font = '600 18px sans-serif';
+        context.fillText(label, x + 16, statCardY + 30);
+        context.fillStyle = '#111827';
+        context.font = '700 28px sans-serif';
+        context.fillText(value, x + 16, statCardY + 68);
+    });
 
-        const canvas = document.createElement('canvas');
-        const pixelRatio = window.devicePixelRatio > 1 ? 2 : 1;
-        canvas.width = Math.ceil(width * pixelRatio);
-        canvas.height = Math.ceil(height * pixelRatio);
+    const highlights = [
+        [t('analytics.highestHit'), formatGroupedNumber(highestHit?.damage ?? 0), highestHit?.player_name || '-'],
+        [t('analytics.topBurst15s'), topBurst ? formatGroupedNumber(topBurst.damage) : '-', topBurst?.player_name || '-'],
+    ];
+    const highlightY = 192;
+    highlights.forEach(([label, value, player], index) => {
+        const x = 40 + (index * 650);
+        context.fillStyle = '#eef2f7';
+        context.fillRect(x, highlightY, 630, 84);
+        context.fillStyle = '#6b7280';
+        context.font = '600 17px sans-serif';
+        context.fillText(label, x + 16, highlightY + 28);
+        context.fillStyle = '#111827';
+        context.font = '700 25px sans-serif';
+        context.fillText(value, x + 16, highlightY + 58);
+        context.font = '500 16px sans-serif';
+        context.fillText(player, x + 340, highlightY + 58);
+    });
 
-        const context = canvas.getContext('2d');
-        context.scale(pixelRatio, pixelRatio);
-        context.fillStyle = '#ffffff';
-        context.fillRect(0, 0, width, height);
-        context.drawImage(image, 0, 0, width, height);
+    const tableY = 300;
+    const columns = [
+        { label: t('analytics.rank'), x: 40, width: 120, align: 'left' },
+        { label: t('players.playerName'), x: 180, width: 360, align: 'left' },
+        { label: t('common.totalDamage'), x: 560, width: 270, align: 'right' },
+        { label: t('live.dps'), x: 850, width: 220, align: 'right' },
+        { label: t('analytics.contribution'), x: 1090, width: 230, align: 'right' },
+    ];
 
-        const pngBlob = await new Promise((resolve) => {
-            canvas.toBlob((blob) => resolve(blob), 'image/png');
-        });
+    context.fillStyle = '#111827';
+    context.font = '700 17px sans-serif';
+    columns.forEach((column) => {
+        const textX = column.align === 'right' ? column.x + column.width : column.x;
+        context.textAlign = column.align;
+        context.fillText(column.label, textX, tableY);
+    });
 
-        if (!pngBlob) {
-            throw new Error('Failed to create PNG blob');
+    players.forEach((player, index) => {
+        const rowY = tableY + 34 + (index * rowHeight);
+        if (index % 2 === 0) {
+            context.fillStyle = '#f8fafc';
+            context.fillRect(36, rowY - 24, 1288, rowHeight);
         }
 
-        return pngBlob;
-    } finally {
-        URL.revokeObjectURL(svgUrl);
+        context.fillStyle = '#111827';
+        context.textAlign = 'left';
+        context.font = '600 16px sans-serif';
+        context.fillText(getRankDisplay(index + 1), 40, rowY);
+        context.fillText(player.playerName, 180, rowY);
+
+        context.textAlign = 'right';
+        context.fillText(formatGroupedNumber(player.totalDamage), 830, rowY);
+        context.fillText(formatGroupedNumber(player.dps), 1070, rowY);
+        context.fillText(`${player.contribution.toFixed(1)}%`, 1320, rowY);
+    });
+
+    const pngBlob = await new Promise((resolve) => {
+        canvas.toBlob((blob) => resolve(blob), 'image/png');
+    });
+
+    if (!pngBlob) {
+        throw new Error('Failed to create PNG blob');
     }
+
+    return pngBlob;
 }
 
 const BattleSummaryPanel = React.forwardRef(function BattleSummaryPanel({
@@ -132,7 +194,15 @@ const BattleSummaryPanel = React.forwardRef(function BattleSummaryPanel({
         if (!exportTargetRef.current) return;
 
         try {
-            const pngBlob = await exportBattleSummaryBlob(exportTargetRef.current);
+            const pngBlob = await exportBattleSummaryBlob({
+                t,
+                totalDamage,
+                effectiveAnalyzedDuration,
+                participants,
+                highestHit,
+                topBurst,
+                players,
+            });
             const downloadUrl = URL.createObjectURL(pngBlob);
             const anchor = document.createElement('a');
             anchor.href = downloadUrl;
