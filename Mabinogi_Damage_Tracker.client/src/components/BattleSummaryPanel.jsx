@@ -15,6 +15,8 @@ import Alert from '@mui/material/Alert';
 import Snackbar from '@mui/material/Snackbar';
 import DownloadRoundedIcon from '@mui/icons-material/DownloadRounded';
 import { useTranslation } from 'react-i18next';
+import { useContext } from 'react';
+import { AppContext } from '../AppContext';
 
 function formatGroupedNumber(num) {
     const numericValue = Number(num ?? 0);
@@ -46,6 +48,7 @@ function getRankDisplay(rank) {
 }
 
 async function exportBattleSummaryBlob({
+    mode,
     t,
     totalDamage,
     effectiveAnalyzedDuration,
@@ -54,6 +57,24 @@ async function exportBattleSummaryBlob({
     topBurst,
     players,
 }) {
+    const lightPalette = {
+        background: '#ffffff',
+        surface: '#f5f7fb',
+        surfaceAlt: '#eef2f7',
+        stripe: '#f8fafc',
+        textPrimary: '#111827',
+        textSecondary: '#6b7280',
+    };
+    const darkPalette = {
+        background: '#0f172a',
+        surface: '#1e293b',
+        surfaceAlt: '#233147',
+        stripe: '#172135',
+        textPrimary: '#f8fafc',
+        textSecondary: '#cbd5e1',
+    };
+    const exportPalette = mode === 'dark' ? darkPalette : lightPalette;
+
     const exportScale = 2;
     const rowHeight = 38;
     const logicalWidth = 1360;
@@ -67,10 +88,10 @@ async function exportBattleSummaryBlob({
         throw new Error('Failed to create canvas context');
     }
     context.scale(exportScale, exportScale);
-    context.fillStyle = '#ffffff';
+    context.fillStyle = exportPalette.background;
     context.fillRect(0, 0, logicalWidth, logicalHeight);
 
-    context.fillStyle = '#111827';
+    context.fillStyle = exportPalette.textPrimary;
     context.font = '700 34px sans-serif';
     context.fillText(t('analytics.battleSummary'), 40, 54);
 
@@ -86,12 +107,12 @@ async function exportBattleSummaryBlob({
     const statCardWidth = 300;
     stats.forEach(([label, value], index) => {
         const x = 40 + (index * (statCardWidth + 20));
-        context.fillStyle = '#f5f7fb';
+        context.fillStyle = exportPalette.surface;
         context.fillRect(x, statCardY, statCardWidth, 90);
-        context.fillStyle = '#6b7280';
+        context.fillStyle = exportPalette.textSecondary;
         context.font = '600 18px sans-serif';
         context.fillText(label, x + 16, statCardY + 30);
-        context.fillStyle = '#111827';
+        context.fillStyle = exportPalette.textPrimary;
         context.font = '700 28px sans-serif';
         context.fillText(value, x + 16, statCardY + 68);
     });
@@ -103,14 +124,15 @@ async function exportBattleSummaryBlob({
     const highlightY = 192;
     highlights.forEach(([label, value, player], index) => {
         const x = 40 + (index * 650);
-        context.fillStyle = '#eef2f7';
+        context.fillStyle = exportPalette.surfaceAlt;
         context.fillRect(x, highlightY, 630, 84);
-        context.fillStyle = '#6b7280';
+        context.fillStyle = exportPalette.textSecondary;
         context.font = '600 17px sans-serif';
         context.fillText(label, x + 16, highlightY + 28);
-        context.fillStyle = '#111827';
+        context.fillStyle = exportPalette.textPrimary;
         context.font = '700 25px sans-serif';
         context.fillText(value, x + 16, highlightY + 58);
+        context.fillStyle = exportPalette.textSecondary;
         context.font = '500 16px sans-serif';
         context.fillText(player, x + 340, highlightY + 58);
     });
@@ -124,7 +146,7 @@ async function exportBattleSummaryBlob({
         { label: t('analytics.contribution'), x: 1090, width: 230, align: 'right' },
     ];
 
-    context.fillStyle = '#111827';
+    context.fillStyle = exportPalette.textPrimary;
     context.font = '700 17px sans-serif';
     columns.forEach((column) => {
         const textX = column.align === 'right' ? column.x + column.width : column.x;
@@ -135,11 +157,11 @@ async function exportBattleSummaryBlob({
     players.forEach((player, index) => {
         const rowY = tableY + 34 + (index * rowHeight);
         if (index % 2 === 0) {
-            context.fillStyle = '#f8fafc';
+            context.fillStyle = exportPalette.stripe;
             context.fillRect(36, rowY - 24, 1288, rowHeight);
         }
 
-        context.fillStyle = '#111827';
+        context.fillStyle = exportPalette.textPrimary;
         context.textAlign = 'left';
         context.font = '600 16px sans-serif';
         context.fillText(getRankDisplay(index + 1), 40, rowY);
@@ -171,6 +193,7 @@ const BattleSummaryPanel = React.forwardRef(function BattleSummaryPanel({
     players,
 }, ref) {
     const { t } = useTranslation();
+    const { mode } = useContext(AppContext);
     const exportTargetRef = React.useRef(null);
     const [feedbackMessage, setFeedbackMessage] = React.useState('');
     const [feedbackSeverity, setFeedbackSeverity] = React.useState('success');
@@ -197,6 +220,7 @@ const BattleSummaryPanel = React.forwardRef(function BattleSummaryPanel({
 
         try {
             const pngBlob = await exportBattleSummaryBlob({
+                mode,
                 t,
                 totalDamage,
                 effectiveAnalyzedDuration,
