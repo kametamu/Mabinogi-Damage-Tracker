@@ -98,7 +98,9 @@
     "rank": "順位",
     "saveAsPng": "PNGで保存",
     "savedBattleSummaryImage": "戦闘サマリー画像をダウンロードしました。",
-    "exportFailed": "戦闘サマリー画像の出力に失敗しました。"
+    "exportFailed": "戦闘サマリー画像の出力に失敗しました。",
+    "expand": "展開",
+    "collapse": "折りたたむ"
   },
   "players": {
     "title": "プレイヤー",

@@ -21,8 +21,11 @@ import List from '@mui/material/List';
 import ListItem from '@mui/material/ListItem';
 import ListItemText from '@mui/material/ListItemText';
 import Snackbar from '@mui/material/Snackbar';
+import Collapse from '@mui/material/Collapse';
 import { DataGrid } from '@mui/x-data-grid';
 import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline';
+import ExpandMoreRoundedIcon from '@mui/icons-material/ExpandMoreRounded';
+import ExpandLessRoundedIcon from '@mui/icons-material/ExpandLessRounded';
 import DamageCard from './DamageCard';
 import PlayerCountCard from './PlayerCountCard';
 import TimeCard from './TimeCard';
@@ -150,6 +153,7 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
     const [hoveredExcludedIntervalId, setHoveredExcludedIntervalId] = useState(null);
     const [pendingExcludedInterval, setPendingExcludedInterval] = useState(null);
     const [feedbackMessage, setFeedbackMessage] = useState('');
+    const [isBattleSummaryExpanded, setIsBattleSummaryExpanded] = useState(false);
 
     const [skillDamagesRaw, setSkillDamagesRaw] = useState([]);
     const [selectedSkillPlayerId, setSelectedSkillPlayerId] = useState('all');
@@ -582,14 +586,30 @@ export default function AnalyticsMenu({ start_ut, end_ut }) {
                 }
                 {showBattleSummary ? (
                     <Grid size={{ xs: 12 }}>
-                        <BattleSummaryPanel
-                            totalDamage={totalDamage ?? 0}
-                            effectiveAnalyzedDuration={effectiveAnalyzedDuration}
-                            participants={numberOfPlayer ?? 0}
-                            highestHit={largestDamageInstances[0] ?? null}
-                            topBurst={topBurstSummary}
-                            players={battleSummaryRows}
-                        />
+                        <Paper square={false} sx={{ p: 2 }}>
+                            <Stack direction="row" alignItems="center" justifyContent="space-between">
+                                <Typography variant="h4">{t('analytics.battleSummary')}</Typography>
+                                <Button
+                                    variant="text"
+                                    endIcon={isBattleSummaryExpanded ? <ExpandLessRoundedIcon /> : <ExpandMoreRoundedIcon />}
+                                    onClick={() => setIsBattleSummaryExpanded((currentValue) => !currentValue)}
+                                >
+                                    {isBattleSummaryExpanded ? t('analytics.collapse') : t('analytics.expand')}
+                                </Button>
+                            </Stack>
+                            <Collapse in={isBattleSummaryExpanded} timeout="auto" unmountOnExit>
+                                <Box sx={{ pt: 2 }}>
+                                    <BattleSummaryPanel
+                                        totalDamage={totalDamage ?? 0}
+                                        effectiveAnalyzedDuration={effectiveAnalyzedDuration}
+                                        participants={numberOfPlayer ?? 0}
+                                        highestHit={largestDamageInstances[0] ?? null}
+                                        topBurst={topBurstSummary}
+                                        players={battleSummaryRows}
+                                    />
+                                </Box>
+                            </Collapse>
+                        </Paper>
                     </Grid>
                 ) : null}
 

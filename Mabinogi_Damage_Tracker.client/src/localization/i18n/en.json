@@ -98,7 +98,9 @@
     "rank": "Rank",
     "saveAsPng": "Save as PNG",
     "savedBattleSummaryImage": "Battle Summary image downloaded.",
-    "exportFailed": "Failed to export Battle Summary image."
+    "exportFailed": "Failed to export Battle Summary image.",
+    "expand": "Expand",
+    "collapse": "Collapse"
   },
   "players": {
     "title": "Players",

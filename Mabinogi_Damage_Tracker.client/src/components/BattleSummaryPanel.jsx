@@ -54,19 +54,21 @@ async function exportBattleSummaryBlob({
     topBurst,
     players,
 }) {
+    const exportScale = 2;
     const rowHeight = 38;
-    const width = 1360;
-    const height = 320 + players.length * rowHeight;
+    const logicalWidth = 1360;
+    const logicalHeight = 320 + players.length * rowHeight;
     const canvas = document.createElement('canvas');
-    canvas.width = width;
-    canvas.height = height;
+    canvas.width = logicalWidth * exportScale;
+    canvas.height = logicalHeight * exportScale;
 
     const context = canvas.getContext('2d');
     if (!context) {
         throw new Error('Failed to create canvas context');
     }
+    context.scale(exportScale, exportScale);
     context.fillStyle = '#ffffff';
-    context.fillRect(0, 0, width, height);
+    context.fillRect(0, 0, logicalWidth, logicalHeight);
 
     context.fillStyle = '#111827';
     context.font = '700 34px sans-serif';
