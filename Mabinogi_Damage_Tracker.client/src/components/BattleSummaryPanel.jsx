@@ -245,8 +245,7 @@ const BattleSummaryPanel = React.forwardRef(function BattleSummaryPanel({
     return (
         <>
             <Paper ref={setExportRefs} square={false} sx={{ p: 3, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                <Stack direction={{ xs: 'column', md: 'row' }} alignItems={{ xs: 'stretch', md: 'center' }} justifyContent="space-between" spacing={2}>
-                    <Typography variant="h4">{t('analytics.battleSummary')}</Typography>
+                <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'stretch', sm: 'center' }} justifyContent="flex-end">
                     <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1} data-export-exclude="true">
                         <Button variant="contained" startIcon={<DownloadRoundedIcon />} onClick={handleSavePng}>
                             {t('analytics.saveAsPng')}
