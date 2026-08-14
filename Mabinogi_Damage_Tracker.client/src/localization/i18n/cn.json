@@ -1,0 +1,115 @@
+{
+  "common": {
+    "language": "語言",
+    "SettingValue": "cn",
+    "english": "English",
+    "japanese": "日本語",
+    "traditionalChinese": "繁體中文",
+    "light": "淺色",
+    "dark": "深色",
+    "totalDamage": "總傷害",
+    "numberOfPlayers": "玩家數量",
+    "damageOverTime": "傷害時間圖",
+    "largestHit": "最大傷害",
+    "seconds": "{{count}}秒",
+    "minutes": "{{m}}分{{s}}秒",
+    "hours": "{{h}}小時{{m}}分"
+  },
+  "sideMenu": {
+    "home": "首頁",
+    "live": "傷害錄製",
+    "players": "玩家",
+    "analytics": "數據分析",
+    "skillStats": "技能統計",
+    "recordings": "錄製紀錄",
+    "settings": "設定",
+    "about": "關於",
+    "feedback": "回饋"
+  },
+  "settings": {
+    "languageLabel": "語言",
+    "colorTheme": "顏色主題",
+    "colorThemeDescription": "設定應用程式的顏色模式為淺色或深色",
+    "numberOfBurst": "爆發數量",
+    "numberOfBurstDescription": "設定數據分析頁面中顯示的獨特傷害爆發數量",
+    "numberOfLargestHits": "最大傷害數量",
+    "numberOfLargestHitsDescription": "設定數據分析頁面中顯示的最大傷害數量",
+    "deleteRecordings": "刪除錄製",
+    "deleteRecordingsDescription": "刪除所有錄製的數據",
+    "adapter": "網路卡",
+    "adapterDescription": "選擇要監聽的網路卡",
+    "save": "儲存",
+    "clear": "清除"
+  },
+  "home": {
+    "title": "瑪奇 傷害追蹤器",
+    "subtitle": "即時監控您在瑪奇中的傷害輸出"
+  },
+  "live": {
+    "title": "傷害錄製",
+    "startRecording": "開始錄製",
+    "stopRecording": "停止錄製",
+    "pauseParser": "暫停解析",
+    "resumeParser": "繼續解析",
+    "recording": "錄製中...",
+    "damageMeter": "Dps表"
+  },
+  "analytics": {
+    "title": "數據分析",
+    "totalDamage": "總傷害",
+    "players": "玩家",
+    "time": "時間",
+    "healing": "治療",
+    "largestBurst": "最大爆發",
+    "largestHit": "最大傷害",
+    "startedAt": "開始於 {time}"
+  },
+  "players": {
+    "title": "玩家",
+    "playerId": "玩家ID",
+    "playerName": "玩家名稱"
+  },
+  "skillStats": {
+    "title": "技能統計",
+    "player": "玩家",
+    "playerName": "玩家名稱",
+    "totalDps": "總 DPS",
+    "damagePercent": "傷害 %",
+    "dps": "DPS",
+    "playerDpsStats": "玩家 DPS 統計",
+    "noPlayerData": "此記錄沒有玩家數據",
+    "skill": "技能",
+    "usageCount": "使用次數",
+    "totalDamage": "總傷害",
+    "average": "平均",
+    "minimum": "最小",
+    "maximum": "最大",
+    "percentage": "佔比"
+  },
+  "recordings": {
+    "title": "錄製紀錄",
+    "id": "ID",
+    "name": "名稱",
+    "date": "日期",
+    "startTime": "開始時間",
+    "endTime": "結束時間",
+    "duration": "持續時間",
+    "durationSeconds": "持續時間 (秒)",
+    "actions": "操作",
+    "view": "檢視",
+    "openForDetails": "開啟詳細資料",
+    "delete": "刪除",
+    "deleteConfirm": "確定要刪除這筆錄製嗎？",
+    "deleteSelected": "刪除所選",
+    "rename": "重新命名",
+    "skillStats": "技能統計",
+    "noRecordings": "目前沒有錄製紀錄"
+  },
+  "about": {
+    "title": "關於",
+    "description": "瑪奇傷害追蹤器是一個開源專案，用於追蹤您在瑪奇遊戲中的傷害輸出。",
+    "version": "版本",
+    "github": "GitHub",
+    "license": "授權"
+  }
+}

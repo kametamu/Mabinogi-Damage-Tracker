@@ -1,8 +1,10 @@
 {
   "common": {
     "language": "言語",
+    "SettingValue": "ja",
     "english": "English",
     "japanese": "日本語",
+    "traditionalChinese": "繁體中文",
     "light": "ライト",
     "dark": "ダーク",
     "totalDamage": "合計ダメージ",

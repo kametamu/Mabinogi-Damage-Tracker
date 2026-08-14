@@ -2,6 +2,7 @@ import i18n from 'i18next';
 import { initReactI18next } from 'react-i18next';
 import en from './en.json';
 import ja from './ja.json';
+import cn from './cn.json'
 
 const getInitialLanguage = () => {
   const savedLanguage = localStorage.getItem('lang');
@@ -23,6 +24,7 @@ if (!i18n.isInitialized) {
       resources: {
         en: { translation: en },
         ja: { translation: ja },
+        cn: {translation: cn }
       },
       lng: getInitialLanguage(),
       fallbackLng: 'en',

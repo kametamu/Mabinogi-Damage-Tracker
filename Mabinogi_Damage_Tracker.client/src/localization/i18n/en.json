@@ -1,15 +1,18 @@
 {
   "common": {
     "language": "Language",
+    "SettingValue":  "en",
     "english": "English",
     "japanese": "日本語",
+    "traditionalChinese": "繁體中文",
     "light": "Light",
     "dark": "Dark",
     "totalDamage": "Total Damage",
     "numberOfPlayers": "Number of Players",
     "damageOverTime": "Damage Over Time",
     "largestHit": "Largest Hit",
-    "cancel": "Cancel"
+    "cancel": "Cancel",
+    "delay":  "Delay"
   },
   "sideMenu": {
     "home": "Home",
@@ -18,7 +21,8 @@
     "recordings": "Recordings",
     "settings": "Settings",
     "about": "About",
-    "feedback": "Feedback"
+    "feedback": "Feedback",
+    "updateavail":  "Update Avaliable!"
   },
   "settings": {
     "languageLabel": "Language",
@@ -43,7 +47,16 @@
     "topEnemyCount": "Top X target count",
     "topEnemyCountDescription": "Sets the default X used by the Analytics Top X Targets filter. Targets are ranked by total damage dealt within the selected time range.",
     "showBattleSummary": "Show Battle Summary",
-    "showBattleSummaryDescription": "Display a shareable battle summary panel on the Analytics screen"
+    "showBattleSummaryDescription": "Display a shareable battle summary panel on the Analytics screen",
+    "flushsettingstitle": "Database Que and Flush Settings",
+    "flushsettingsdescription": [
+      "Restart server after changing these settings. If running on slow drives like hard drives keep enabled.",
+      "The larger the number the less disk writes but your live page will update slower.",
+      "Also reduces wear on solid state drives by writing less over all data.",
+      "Can potentially change the accuracy of 'Burst damage' information but all other data is fully accurate."
+    ],
+    "flushsettingenable": "Enable DB Queuing",
+    "flushsettingtime": "Flush Time"
   },
   "live": {
     "title": "Live",

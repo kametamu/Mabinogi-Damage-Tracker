@@ -1,8 +1,3 @@
-🇯🇵 日本語ドキュメント  
-→ README_JA.md
-
-Download
-https://github.com/kametamu/Mabinogi-Damage-Tracker/releases
 
 # Dear Nexon Devs / Community Managers / Game Masters and Decision Makers,  
 
@@ -40,13 +35,13 @@ On the other end our application has no capability of spoofing or exploiting any
 ## Is this accurate?
 Yes! (no), kind of? Good enough.
 
-This application is only going to record information that you would normally see on your screen. So if you are standing too far away from a boss where you do not see the damage render in on your screen you will not track that information. Redoubled offensive and Stardust skills are also not recorded and that is a feature we would like to implement but have had difficulty doing so.
+This application is only going to record information that you would normally see on your screen. So if you are standing too far away from a boss where you do not see the damage render in on your screen you will not track that information.
 
 ## Do i need to use the managed switch/router and a second computer.
 No, you absolutely can run this all locally. But that would mean Nexon would have the capability to detect you are running the software. The implications of that being unknown at this moment.
 
 ## Does this work in other regions? Im in KR/JP/CN/… and would like to use it.
-We don't know, please reach out in the discussions/bug report area of this Github repo and we can assist in getting it working. It is possible that out of the box it ‘just works’
+We have users in JP, CN may require different ports to be used but we are unsure, KR is unknown at the moment. Try to run it if you are in these regions and leave an issue if something does not work.
 
 ## Is this safe?
 Its open source software so you can build and compile it yourself and check the hash of the server binary. Its also written in .net so you can see what operations are being ran with .net decompilers.
@@ -85,7 +80,8 @@ You can now check your recipient/tracker PC and you should see no internet conne
 
 ## Run the server
 
-Download the compiled server from the releases page and move that onto a local directory on your pc. Run the MabinogiDamageTracker.server.exe and you should be up and running. If a console (command prompt) does not show up or something opens and closes really quicky use the command prompt to run the application and see what error you receive.  
+Download the compiled server from the releases page and move that onto a local SSD or M.2 directory running off your PC.
+Run the MabinogiDamageTracker.server.exe and you should be up and running. If a console (command prompt) does not show up or something opens and closes really quicky use the command prompt to run the application and see what error you receive.  
 EX:  
 cd C:/MabinogiDamageTracker  
 MabinogiDamageTracker.Server.exe  
@@ -99,14 +95,19 @@ We monitor healing, general chat, and damage. Check the live page for a live log
 
 
 ## We are an open source project and appreciate any contributions to the project!
-Currently the main missing feature set is redoubled offensive and star dust information not being read. We are also actively developing the user experience and adding front end features. Check back with the repo occasionally and see if any new updates are out.
+We are actively developing the user experience and adding front end features. Check back with the repo occasionally and see if any new updates are out.
 
+
+# Troubleshooting:
+## I have inaccurate data
+Make sure the app is being ran off a solid state drive (sata SSD or M.2) if the app is ran off a hard drive (HDD or spinning disk)
 
 
 # Recognitions:
 
 [KilloPillers](https://github.com/KilloPillers) - Lead front end designer, data presentation and user experience, backend integration and overall major project lead.  
 Anonymous Devs - All around assistance.  
+[Kametamu](https://github.com/kametamu) - Redesign parser to use tcp stream for better reliability, started the localization process for other languages, added front end UX improvements  
 [LukasTD](https://github.com/LukasTD/NaoParse  ) - NaoParse – foundation for beginning this project with great resources.  
 [Exectails](https://github.com/exectails ) - Morrighan & MabiPale2 – which was the foundation for NaoParse.  
 [Pril](https://gitlab.com/prilus/mabidilmeter  ) - dilmatulgi – The Korean version of NaoParse with additional information on parsing packets.  
